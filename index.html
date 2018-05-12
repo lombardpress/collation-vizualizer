@@ -1,0 +1,149 @@
+<html>
+<head>
+  <link rel="stylesheet" href="traviz.css" type="text/css"/>
+  <script
+  src="https://code.jquery.com/jquery-3.3.1.min.js"
+  integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+  crossorigin="anonymous"></script>
+  <script src="traviz-min.js" type="text/javascript"></script>
+  <script src="papaparse.min.js" type="text/javascript"></script>
+
+</head>
+<body>
+  <div id="navbar"></div>
+<div id="TRAVizContainerDiv"><img src="http://thinkfuture.com/wp-content/uploads/2013/10/loading_spinner.gif"/></div>
+
+
+<script>
+  function getUrlVar() {
+    var result = {};
+    var location = window.location.href.split('#');
+    var parts = location[0].replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m,key,value) {
+        result [key] = value;
+    });
+    return result;
+  }
+
+  var blockId = getUrlVar()['id'];
+  var blockShortId = getUrlVar()['id'].split("http://scta.info/resource/")[1]
+
+  //get manifestations (loop through manifestsions, add promises to array)
+  const sparqlEndpoint = "https://sparql-staging.scta.info/ds/query"
+  var itemId = getUrlVar()['id'];
+  var query = [
+      "SELECT ?transcription ?next ?previous  ",
+      "WHERE",
+      "{",
+        "<" + blockId + "> <http://scta.info/property/isPartOfStructureItem> ?item .",
+        "OPTIONAL {",
+          "<" + blockId + "> <http://scta.info/property/next> ?next .",
+        "}",
+        "OPTIONAL {",
+          "<" + blockId + "> <http://scta.info/property/previous> ?previous .",
+        "}",
+        "?item <http://scta.info/property/hasManifestation> ?manifestation .",
+        "?manifestation <http://scta.info/property/hasTranscription> ?transcription",
+
+      "}"].join('');
+
+
+      $.get(sparqlEndpoint, {query: query}, function(data){
+        var results = data.results.bindings;
+        $("#navbar").append("Collation for " + blockId);
+      if (results[0].previous){
+        $("#navbar").append("<a href=?id=" + results[0].previous.value + "> Previous </a> | ");
+      }
+        if (results[0].next){
+          $("#navbar").append("<a href=?id=" + results[0].next.value + ">Next </a> ");
+        }
+
+
+        promiseArray = results.map(function(r){
+          var textPromise = new Promise(function(resolve, reject){
+            var urlSlug = r.transcription.value.split("http://scta.info/resource/")[1]
+            $.get("https://exist.scta.info/exist/apps/scta-app/csv/" + urlSlug, function(data){
+              var parsedData = Papa.parse(data);
+
+              var hashTable = {}
+              parsedData.data.forEach(function(d){
+                hashTable[d[0]] = d[1]
+              });
+
+              var dataObject = {
+                "text": hashTable[blockShortId],
+                "id": r.transcription.value.split("/")[5]
+              }
+              resolve(dataObject)
+            });
+          });
+          return textPromise
+        });
+
+        Promise.all(promiseArray).then(function(values){
+          var traviz = new TRAViz("TRAVizContainerDiv");
+
+          var data = values.map(function(r){
+
+            var object = {
+              edition: r.id,
+              text: r.text
+            }
+            return object
+          });
+
+          traviz.align(data);
+          traviz.visualize();
+        });
+
+
+
+      });
+
+
+
+
+
+
+  // var vat = new Promise(function(resolve, reject){
+  //   $.get("https://exist.scta.info/exist/apps/scta-app/csv/lectio1/vat/transcription", function(data){
+  //     parsedData = Papa.parse(data);
+  //     resolve(parsedData.data[pn][1])
+  //   });
+  // });
+  // var reims = new Promise(function(resolve, reject){
+  //   $.get("https://exist.scta.info/exist/apps/scta-app/csv/lectio1/reims/transcription", function(data){
+  //     parsedData = Papa.parse(data);
+  //     resolve(parsedData.data[pn][1])
+  //   });
+  // });
+  // var svict = new Promise(function(resolve, reject){
+  //   $.get("https://exist.scta.info/exist/apps/scta-app/csv/lectio1/svict/transcription", function(data){
+  //     parsedData = Papa.parse(data);
+  //     resolve(parsedData.data[pn][1]);
+  //   });
+  // });
+  // var sorb = new Promise(function(resolve, reject){
+  //   $.get("https://exist.scta.info/exist/apps/scta-app/csv/lectio1/sorb/transcription", function(data){
+  //     parsedData = Papa.parse(data);
+  //     resolve(parsedData.data[pn][1]);
+  //   });
+  // });
+  // var erlang = new Promise(function(resolve, reject){
+  //   $.get("https://exist.scta.info/exist/apps/scta-app/csv/ppr-lectio1/erlang/transcription", function(data){
+  //     parsedData = Papa.parse(data);
+  //     resolve(parsedData.data[pn][1]);
+  //   });
+  // });
+  // var pal = new Promise(function(resolve, reject){
+  //   $.get("https://exist.scta.info/exist/apps/scta-app/csv/ppr-lectio1/pal/transcription", function(data){
+  //     parsedData = Papa.parse(data);
+  //     resolve(parsedData.data[0][pn]);
+  //   });
+  // });
+
+
+
+
+</script>
+</body>
+</html>
