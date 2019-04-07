@@ -1,0 +1,220 @@
+<html>
+<head>
+  <script
+  src="https://code.jquery.com/jquery-3.3.1.min.js"
+  integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+  crossorigin="anonymous"></script>
+
+  <script src="diff_match_patch_uncompressed.js"></script>
+  <script src="papaparse.min.js" type="text/javascript"></script>
+
+  <style>
+  body{
+    height: 100vh;
+    padding: 0;
+    margin: 0;
+
+  }
+  .outerWrapper {
+    /* border-top: 1px solid black;
+    padding: 10px; */
+    flex-grow: 1;
+    flex-basis: 0;
+    height: 100vh;
+    overflow: scroll
+
+  }
+  #textWrapper {
+    display: flex;
+    justify-content: space-between;
+    height: 100vh;
+
+  }
+
+  .navBar{
+    padding: 10px;
+    margin: 5px;
+    border-bottom: 1px dotted black;
+  }
+  .relatedItem{
+
+  }
+  .text{
+
+    padding: 10px;
+    margin: 10px;
+  }
+  .label{
+    font-weight: bold;
+    padding-right: 2px;
+    cursor: pointer;
+  }
+
+  </style>
+</head>
+<body>
+
+  <div id="textWrapper">
+  <div class="outerWrapper">
+    <div class="navbar"></div>
+    <div id="BaseContainerDiv" class="relatedItem"><img class="spinner" src="http://thinkfuture.com/wp-content/uploads/2013/10/loading_spinner.gif"/></div>
+  </div>
+</div>
+
+<script>
+  function State() {
+    this.baseText = "";
+  }
+  function getUrlVar() {
+    var result = {};
+    var location = window.location.href.split('#');
+    var parts = location[0].replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m,key,value) {
+        result [key] = value;
+    });
+    return result;
+  }
+
+
+
+
+  //get manifestations (loop through manifestsions, add promises to array)
+  const sparqlEndpoint = "http://sparql-docker.scta.info/ds/query"
+
+
+
+   function displayCollation(blockId, wrapper, baseTextSlug, state){
+     var query = [
+         "SELECT ?transcription ?next ?previous ?shortId ",
+         "WHERE",
+         "{",
+           "<" + blockId + "> <http://scta.info/property/isPartOfStructureItem> ?item .",
+           "OPTIONAL {",
+             "<" + blockId + "> <http://scta.info/property/next> ?next .",
+           "}",
+           "OPTIONAL {",
+             "<" + blockId + "> <http://scta.info/property/previous> ?previous .",
+           "}",
+           "?item <http://scta.info/property/hasManifestation> ?manifestation .",
+           "?manifestation <http://scta.info/property/hasTranscription> ?transcription .",
+           "<" + blockId + "> <http://scta.info/property/shortId> ?shortId .",
+
+         "}"].join('');
+
+      $.get(sparqlEndpoint, {query: query}, function(data){
+        var results = data.results.bindings;
+          $("#" + wrapper).prev(".navbar").append("Collation for " + blockId);
+        if (results[0].previous){
+          $("#" + wrapper).prev(".navbar").append("<a href='?id=" + results[0].previous.value + "&m=" + baseTextSlug + "'> Previous </a> | ");
+        }
+        if (results[0].next){
+          $("#" + wrapper).prev(".navbar").append("<a href='?id=" + results[0].next.value + "&m=" + baseTextSlug + "'>Next </a> ");
+        }
+
+
+        promiseArray = results.map(function(r){
+          var textPromise = new Promise(function(resolve, reject){
+            var urlSlug = r.transcription.value.split("http://scta.info/resource/")[1]
+            $.get("https://exist.scta.info/exist/apps/scta-app/csv/" + urlSlug, function(data){
+              var parsedData = Papa.parse(data);
+
+              var hashTable = {}
+              parsedData.data.forEach(function(d){
+                hashTable[d[0]] = d[1]
+              });
+              var dataObject = {
+                "text": hashTable[r.shortId.value],
+                "id": r.transcription.value.split("/")[5]
+              }
+              resolve(dataObject)
+            });
+          });
+          return textPromise
+        });
+
+        Promise.all(promiseArray).then(function(values){
+          let baseText = ""
+          let counterStart = 0
+          if (!state.baseText){
+            const base = values.find((o) => {
+              if (o.id === baseTextSlug)
+              return o
+            })
+
+            baseText = base ? base.text : values[0].text
+            baseTextId = base ? base.id : values[0].id
+            $(".spinner").remove()
+            $("#" + wrapper).append("<div class='text'><span class='label'>" + baseTextId + "</span>" + baseText + "</div>")
+            state.baseText = baseText
+            counterStart++
+          }
+          else{
+            baseText = state.baseText
+          }
+          values.forEach(function(v){
+            if (v.id != baseTextId){
+              displayText = runGoogleDiffPatch(baseText, v.text)
+              const link = "view2.html?id=" + blockId + "&m=" + v.id
+              $(".spinner").remove()
+              $("#" + wrapper).append("<div class='text'><a href='" + link + "' class='label' data-id='" + v.id + "'>" + v.id + "</a>" + displayText + "</div>")
+            }
+          })
+
+        });
+
+
+
+      });
+    }
+    function runGoogleDiffPatch(base, compare){
+      const dmp = new diff_match_patch();
+      const diff = dmp.diff_main(base, compare);
+      // Result: [(-1, "Hell"), (1, "G"), (0, "o"), (1, "odbye"), (0, " World.")]
+      dmp.diff_cleanupSemantic(diff);
+      const ds = dmp.diff_prettyHtml(diff);
+      // Result: [(-1, "Hello"), (1, "Goodbye"), (0, " World.")]
+      return ds
+    }
+
+    function displayRelated(blockId){
+
+      const isRelatedToQuery = [
+            "SELECT ?isRelatedTo ?shortId ",
+            "WHERE",
+            "{",
+              "<" + blockId + "> <http://scta.info/property/isRelatedTo> ?isRelatedTo .",
+              "?isRelatedTo <http://scta.info/property/shortId> ?shortId .",
+            "}"].join('');
+
+      $.get(sparqlEndpoint, {query: isRelatedToQuery}, function(data){
+        const results = data.results.bindings;
+
+        results.forEach(function(item){
+          $("#textWrapper").append("<div class='outerWrapper'><div class='navbar'></div><div id='" + item.shortId.value + "' class='relatedItem'>" + item.isRelatedTo.value + "</div></div>");
+          });
+        });
+      }
+
+      $(document).ready(function(){
+
+        var state = new State();
+        var baseTextSlug = getUrlVar()['m'];
+        var blockId = getUrlVar()['id'];
+        $(document).on("click", ".relatedItem", function(e){
+          shortId = e.target.id
+          url = e.target.innerText
+          $("#" + shortId).html("<img class='spinner' src='http://thinkfuture.com/wp-content/uploads/2013/10/loading_spinner.gif'/>");
+
+          displayCollation(url, shortId, baseTextSlug, state)
+        });
+
+        displayCollation(blockId, "BaseContainerDiv", baseTextSlug, state)
+        displayRelated(blockId)
+
+
+    });
+
+
+
+    </script>
+</body>
+</html>
