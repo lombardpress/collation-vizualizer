@@ -181,8 +181,18 @@
             "SELECT ?isRelatedTo ?shortId ",
             "WHERE",
             "{",
+            "{",
               "<" + blockId + "> <http://scta.info/property/isRelatedTo> ?isRelatedTo .",
-              "?isRelatedTo <http://scta.info/property/shortId> ?shortId .",
+            "}",
+            "UNION",
+            "{",
+              "<" + blockId + "> <http://scta.info/property/abbreviates> ?isRelatedTo .",
+            "}",
+            "UNION",
+            "{",
+              "<" + blockId + "> <http://scta.info/property/abbreviatedBy> ?isRelatedTo .",
+            "}",
+            "?isRelatedTo <http://scta.info/property/shortId> ?shortId .",
             "}"].join('');
 
       $.get(sparqlEndpoint, {query: isRelatedToQuery}, function(data){
