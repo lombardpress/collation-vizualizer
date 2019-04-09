@@ -43,11 +43,35 @@
 
     padding: 10px;
     margin: 10px;
+    transition: all .5s ease-in-out;
+    -webkit-transition: all .5s ease-in-out;
+
+
   }
   .label{
     font-weight: bold;
     padding-right: 2px;
     cursor: pointer;
+
+  }
+  .selected{
+    position: fixed;
+    top: 10vh;
+    height: 60vh;
+    left: 10%;
+    width: 70%;
+    background-color: white;
+    font-size: 25px;
+    line-height: 200%;
+    padding: 5%;
+    box-shadow: 10px 10px 8px 10px #888888;
+    overflow: scroll;
+    transition: all 1s ease-in-out;
+    -webkit-transition: all 1s ease-in-out;
+
+
+
+
   }
 
   </style>
@@ -216,6 +240,9 @@
 
           displayCollation(url, shortId, baseTextSlug, state)
         });
+        $(document).on("click", ".text", function(e){
+          $(this).toggleClass("selected");
+        })
 
         displayCollation(blockId, "BaseContainerDiv", baseTextSlug, state)
         displayRelated(blockId)
