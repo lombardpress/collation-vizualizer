@@ -1,0 +1,124 @@
+<html>
+<head>
+  <script
+  src="https://code.jquery.com/jquery-3.3.1.min.js"
+  integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+  crossorigin="anonymous"></script>
+
+  <style type="text/css">
+    .text {
+      font-size: 30px;
+    }
+    .citation {
+      font-size: 16px;
+    }
+    .link {
+      font-size: 16px;
+    }
+    </style>
+
+
+  <script>
+    function getUrlVar() {
+      var result = {};
+      var location = window.location.href.split('#');
+      var parts = location[0].replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m,key,value) {
+          result [key] = value;
+      });
+      return result;
+    }
+
+    const sparqlEndpoint = "http://sparql-docker.scta.info/ds/query"
+    $(document).ready(() => {
+      $(".quote").each((i, q) => {
+        const id = getUrlVar()["resourceid"]
+        const tokenStart = getUrlVar()["start"]
+        const tokenEnd = getUrlVar()["end"]
+        const showContext = getUrlVar()["context"]
+        const query = generateQuery(id);
+
+
+        $.get(sparqlEndpoint, {query: query}, function(data){
+          const itemid = data.results.bindings[0].itemid.value
+          const transcriptionid = data.results.bindings[0].ct.value
+          const translationid = data.results.bindings[0].transl ? data.results.bindings[0].transl.value : ""
+          const citation = "<p class='citation'>" + data.results.bindings[0].longTitle.value + "</p>"
+          const idLink = "<p class='link'><a href='" + transcriptionid + "'>" + transcriptionid + "</a></p>"
+          const collationLink = "<p class='link'><a href='http://lombardpress.org/collation-vizualizer/view2.html?id=" + id + "&m=critical'>http://lombardpress.org/collation-vizualizer/view2.html?id=" + id + "&m=critical</a></p>"
+          const lbpLink = "<p class='link'><a href='http://scta.lombardpress.org/text/" + itemid.split("/resource/")[1] + "#" + id.split("/resource/")[1] + "'>http://scta.lombardpress.org/text/" + itemid.split("/resource/")[1] + "#" + id.split("/resource/")[1] + "</a></p>"
+          $(".citation").append([citation, idLink, collationLink, lbpLink])
+          const text = getText(transcriptionid);
+          text.then((rawText) => {
+            const textElement = highlightTextRange(rawText, tokenStart, tokenEnd, showContext)
+            $(".textWrapper").append(textElement)
+            if (translationid){
+              const transl = getText(translationid);
+              transl.then((rawText2) => {
+                const textElement2 = highlightTextRange(rawText2, "", "", "true")
+                $(".textWrapper").append(textElement2)
+
+              })
+            }
+          })
+
+
+        });
+      });
+    });
+
+    function getText(resourceid){
+      var textPromise = new Promise(function(resolve, reject){
+        $.get("http://exist.scta.info/exist/apps/scta-app/csv-pct.xq?resourceid=" + resourceid, function(data2){
+          const text = data2;
+          resolve(text)
+        });
+      });
+      return textPromise
+    }
+    function highlightTextRange(text, start, stop, context){
+      const wordTokenStart = start
+      const wordTokenEnd = stop
+      const wordTokens = text.split(" ")
+      const wordTokensClean = wordTokens.filter(Boolean)
+      const wordTokensBefore = wordTokensClean.slice(0, wordTokenStart - 1);
+      const wordTokensAfter = wordTokensClean.slice(wordTokenEnd)
+      const wordTokensFocus = wordTokensClean.slice(wordTokenStart - 1, wordTokenEnd)
+      let textElement = ""
+      if (context === "true"){
+        textElement = "<p class='text'><span>" + wordTokensBefore.join(" ") + "</span> <span style='font-weight: bold'>" + wordTokensFocus.join(" ") + "</span> <span>" + wordTokensAfter.join(" ") +"</span></p>"
+      }
+      else{
+        textElement = "<p class='text'>" + wordTokensFocus.join(" ") + "</p>"
+      }
+      return textElement
+    }
+
+    function generateQuery(id){
+      const query = [
+      'SELECT ?longTitle ?ct ?itemid ?transl ',
+      'WHERE {',
+      '<' + id + '> <http://scta.info/property/longTitle> ?longTitle .',
+      '<' + id + '> <http://scta.info/property/hasCanonicalManifestation> ?cm .',
+      '<' + id + '> <http://scta.info/property/isPartOfStructureItem> ?itemid .',
+      '?cm <http://scta.info/property/hasCanonicalTranscription> ?ct .',
+      '?ct <http://scta.info/property/plaintext> ?plaintext .',
+      'OPTIONAL {',
+      '<' + id + '> <http://scta.info/property/hasManifestation> ?manWithTransl .',
+      '?manWithTransl <http://scta.info/property/hasTranscription> ?transl .',
+      "?transl <http://scta.info/property/transcriptionType> 'translation' .",
+      '}',
+      '}'
+      ].join(" ")
+      return query
+    }
+
+  </script>
+  <body>
+    <div class="quote" data-id="http://scta.info/resource/l1-cpspfs" data-start="6" data-end="20" data-show-context="true">
+      <div class="textWrapper">
+      </div>
+      <div class="citation">
+      </div>
+    </div>
+</body>
+</html>
