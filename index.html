@@ -42,18 +42,17 @@
 
    function displayCollation(blockId, wrapper){
      var query = [
-         "SELECT ?transcription ?next ?previous ?shortId ",
+         "SELECT ?transcription ?block_transcription ?next ?previous ?shortId ",
          "WHERE",
          "{",
-           "<" + blockId + "> <http://scta.info/property/isPartOfStructureItem> ?item .",
+           "<" + blockId + "> <http://scta.info/property/hasManifestation> ?block_manifestation .",
+           "?block_manifestation <http://scta.info/property/hasCanonicalTranscription> ?block_transcription .",
            "OPTIONAL {",
              "<" + blockId + "> <http://scta.info/property/next> ?next .",
            "}",
            "OPTIONAL {",
              "<" + blockId + "> <http://scta.info/property/previous> ?previous .",
            "}",
-           "?item <http://scta.info/property/hasManifestation> ?manifestation .",
-           "?manifestation <http://scta.info/property/hasTranscription> ?transcription .",
            "<" + blockId + "> <http://scta.info/property/shortId> ?shortId .",
 
          "}"].join('');
@@ -71,17 +70,10 @@
 
         promiseArray = results.map(function(r){
           var textPromise = new Promise(function(resolve, reject){
-            var urlSlug = r.transcription.value.split("http://scta.info/resource/")[1]
-            $.get("https://exist.scta.info/exist/apps/scta-app/csv/" + urlSlug, function(data){
-              var parsedData = Papa.parse(data);
-
-              var hashTable = {}
-              parsedData.data.forEach(function(d){
-                hashTable[d[0]] = d[1]
-              });
+            $.get("http://exist.scta.info/exist/apps/scta-app/csv-pct.xq?resourceid=" + r.block_transcription.value, function(data){
               var dataObject = {
-                "text": hashTable[r.shortId.value],
-                "id": r.transcription.value.split("/")[5]
+                "text": data,
+                "id": r.block_transcription.value
               }
               resolve(dataObject)
             });
@@ -90,11 +82,8 @@
         });
 
         Promise.all(promiseArray).then(function(values){
-
           var traviz = new TRAViz(wrapper);
-
           var data = values.map(function(r){
-
             var object = {
               edition: r.id,
               text: r.text
