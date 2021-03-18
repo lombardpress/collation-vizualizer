@@ -1,0 +1,199 @@
+<html>
+
+<head>
+  <link rel="stylesheet" href="traviz.css" type="text/css" />
+  <script src="https://code.jquery.com/jquery-3.3.1.min.js"
+    integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+
+  <script src="papaparse.min.js" type="text/javascript"></script>
+  <style>
+    body,html{
+      margin: 0;
+      padding: 0;
+
+    }
+    .outerWrapper {
+      border-top: 1px solid black;
+    }
+
+    #textWrapper {}
+    table, th, td {
+      border: 1px solid black;
+      border-collapse: collapse;
+}
+td {
+  padding: 5px
+}
+.navbar{background-color: white;;}
+  </style>
+</head>
+
+<body>
+  <div id="textWrapper">
+    <div class="outerWrapper" style="height: 40vh">
+      <div class="navbar">
+      </div>
+      <div id="view" style="width: 100%; overflow: scroll;"></div>
+    </div>
+    <div style="height: 60vh; overflow: scroll";>
+      <table id="tableView" style="overflow: scroll; border: 1px solid black"><tr></tr></table>
+    </div>
+    </div>
+    </div>
+  </div>
+  
+  </div>
+
+
+
+  <script>
+    function getUrlVar() {
+      var result = {};
+      var location = window.location.href.split('#');
+      var parts = location[0].replace(/[?&]+([^=&]+)=([^&]*)/gi, function (m, key, value) {
+        result[key] = value;
+      });
+      return result;
+    }
+
+    var blockId = getUrlVar()['id'];
+
+
+    //get manifestations (loop through manifestsions, add promises to array)
+    const sparqlEndpoint = "http://sparql-docker.scta.info/ds/query";
+
+
+
+    function displayCollateX(blockId, wrapper) {
+      var query = [
+        "SELECT ?transcription ?block_transcription ?next ?previous ?shortId ",
+        "WHERE",
+        "{",
+        "<" + blockId + "> <http://scta.info/property/hasManifestation> ?block_manifestation .",
+        "?block_manifestation <http://scta.info/property/hasCanonicalTranscription> ?block_transcription .",
+        "OPTIONAL {",
+        "<" + blockId + "> <http://scta.info/property/next> ?next .",
+        "}",
+        "OPTIONAL {",
+        "<" + blockId + "> <http://scta.info/property/previous> ?previous .",
+        "}",
+        "<" + blockId + "> <http://scta.info/property/shortId> ?shortId .",
+
+        "}"].join('');
+
+      $.get(sparqlEndpoint, { query: query }, function (data) {
+        var results = data.results.bindings;
+        $("#" + wrapper).prev(".navbar").append("Collation for " + blockId);
+        if (results[0].previous) {
+          $("#" + wrapper).prev(".navbar").append("<a href=?id=" + results[0].previous.value + "> Previous </a> | ");
+        }
+        if (results[0].next) {
+          $("#" + wrapper).prev(".navbar").append("<a href=?id=" + results[0].next.value + ">Next </a> ");
+        }
+
+
+        promiseArray = results.map(function (r) {
+          var textPromise = new Promise(function (resolve, reject) {
+            $.get("http://exist.scta.info/exist/apps/scta-app/csv-pct.xq?resourceid=" + r.block_transcription.value, function (data) {
+
+              // block of code to remove any lingering punctuation
+              // code retrieved from https://stackoverflow.com/a/48387827/731085
+              var punctuationRegEx = /[!-/:-@[-`{-~¡-©«-¬®-±´¶-¸»¿×÷˂-˅˒-˟˥-˫˭˯-˿͵;΄-΅·϶҂՚-՟։-֊־׀׃׆׳-״؆-؏؛؞-؟٪-٭۔۩۽-۾܀-܍߶-߹।-॥॰৲-৳৺૱୰௳-௺౿ೱ-ೲ൹෴฿๏๚-๛༁-༗༚-༟༴༶༸༺-༽྅྾-࿅࿇-࿌࿎-࿔၊-၏႞-႟჻፠-፨᎐-᎙᙭-᙮᚛-᚜᛫-᛭᜵-᜶។-៖៘-៛᠀-᠊᥀᥄-᥅᧞-᧿᨞-᨟᭚-᭪᭴-᭼᰻-᰿᱾-᱿᾽᾿-῁῍-῏῝-῟῭-`´-῾\u2000-\u206e⁺-⁾₊-₎₠-₵℀-℁℃-℆℈-℉℔№-℘℞-℣℥℧℩℮℺-℻⅀-⅄⅊-⅍⅏←-⏧␀-␦⑀-⑊⒜-ⓩ─-⚝⚠-⚼⛀-⛃✁-✄✆-✉✌-✧✩-❋❍❏-❒❖❘-❞❡-❵➔➘-➯➱-➾⟀-⟊⟌⟐-⭌⭐-⭔⳥-⳪⳹-⳼⳾-⳿⸀-\u2e7e⺀-⺙⺛-⻳⼀-⿕⿰-⿻\u3000-〿゛-゜゠・㆐-㆑㆖-㆟㇀-㇣㈀-㈞㈪-㉃㉐㉠-㉿㊊-㊰㋀-㋾㌀-㏿䷀-䷿꒐-꓆꘍-꘏꙳꙾꜀-꜖꜠-꜡꞉-꞊꠨-꠫꡴-꡷꣎-꣏꤮-꤯꥟꩜-꩟﬩﴾-﴿﷼-﷽︐-︙︰-﹒﹔-﹦﹨-﹫！-／：-＠［-｀｛-･￠-￦￨-￮￼-�]|\ud800[\udd00-\udd02\udd37-\udd3f\udd79-\udd89\udd90-\udd9b\uddd0-\uddfc\udf9f\udfd0]|\ud802[\udd1f\udd3f\ude50-\ude58]|\ud809[\udc00-\udc7e]|\ud834[\udc00-\udcf5\udd00-\udd26\udd29-\udd64\udd6a-\udd6c\udd83-\udd84\udd8c-\udda9\uddae-\udddd\ude00-\ude41\ude45\udf00-\udf56]|\ud835[\udec1\udedb\udefb\udf15\udf35\udf4f\udf6f\udf89\udfa9\udfc3]|\ud83c[\udc00-\udc2b\udc30-\udc93]/g;
+              var string = data;
+              var newString = string.replace(punctuationRegEx, '').replace(/(\s){2,}/g, '$1');
+              
+              var dataObject = {
+                "text": newString,
+                "id": r.block_transcription.value
+              }
+              resolve(dataObject)
+            });
+          });
+          return textPromise
+        });
+
+        Promise.all(promiseArray).then(function (values) {
+          const witnesses = values.map(function (r) {
+            return { "id": r.id.split("/resource/")[1].split("/")[1], "content": r.text }
+          });
+          const postObject = {
+            "algorithm": "dekker",
+            "joined": true,
+            "tokenComparator": { "type": "equality" },
+            "transpositions": true,
+            "witnesses": witnesses
+          }
+          
+
+
+          // get graph view
+          $.ajax({
+            type: "POST",
+            url: "https://collatex.net/demo/collate",
+            data: JSON.stringify(postObject),
+            headers: {
+              "Accept": "image/svg+xml",
+              "Content-Type": "application/json"
+            },
+            success: function (d) {
+              console.log("data", d);
+              $("#view").append(d);
+              $("#view").html($("#view").html());
+            },
+            error: function (e) {
+              console.log("error", e)
+              $("#view").append(e.responseText);
+
+            },
+
+            dataType: "json"
+
+          });
+
+          // get table view
+          $.ajax({
+            type: "POST",
+            url: "https://collatex.net/demo/collate",
+            data: JSON.stringify(postObject),
+            headers: {
+              "Accept": "application/json",
+              "Content-Type": "application/json"
+            },
+            success: function (d) {
+              console.log("data", d);
+              $("#tableView").append("<tr id='wit'>");
+              $("#wit").append("<th>seg</th>");
+              d.witnesses.forEach((w) => {
+                console.log("data", w);
+                
+                $("#wit").append("<th>" + w  + "</th>");
+              })
+              d.table.forEach((seg, ix) => {
+                $("#tableView").append("<tr id='row-" + ix + "'>");
+                $("#row-" + ix).append("<td>" + (ix + 1)  + "</td>");
+                seg.forEach((i) => {
+                  console.log("data", i);
+                  $("#row-" + ix).append("<td>" + i.join(" ")  + "</td>");
+                })
+              })
+            },
+            error: function (e) {
+              console.log(e)              
+
+            },
+
+            dataType: "json"
+
+          });
+
+        });
+
+      });
+    }
+    displayCollateX(blockId, "view")
+
+
+  </script>
+</body>
+
+</html>
