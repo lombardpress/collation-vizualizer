@@ -151,8 +151,8 @@ td {
           
 
           // get table view
-          const url = "https://collatex.net/demo/collate"
-          //const url = "http://localhost:7369/collate"
+          //const url = "https://collatex.net/demo/collate"
+          const url = "http://localhost:7369/collate"
           // get graph view
           $.ajax({
             type: "POST",
@@ -161,7 +161,7 @@ td {
             headers: {
               "Accept": "image/svg+xml",
               "Content-Type": "application/json",
-              "Access-Control-Allow-Origin": "*"
+
             },
             success: function (d) {
               console.log("data", d);
@@ -186,7 +186,7 @@ td {
             headers: {
               "Accept": "application/json",
               "Content-Type": "application/json",
-              "Access-Control-Allow-Origin": "*"
+
             },
             success: function (d) {
               console.log("collatex d", d)
