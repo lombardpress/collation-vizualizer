@@ -82,10 +82,14 @@ td {
 
     function displayCollateX(blockId, wrapper) {
       var query = [
-        "SELECT ?transcription ?block_transcription ?next ?previous ?shortId ",
+        "SELECT ?transcription ?block_transcription ?next ?previous ?shortId ?itemShortId ?topLevelShortId ",
         "WHERE",
         "{",
         "<" + blockId + "> <http://scta.info/property/hasManifestation> ?block_manifestation .",
+        "<" + blockId + "> <http://scta.info/property/isPartOfStructureItem> ?structureItem .",
+        "?structureItem <http://scta.info/property/shortId> ?itemShortId .",
+        "<" + blockId + "> <http://scta.info/property/isPartOfTopLevelExpression> ?topLevel .",
+        "?topLevel <http://scta.info/property/shortId> ?topLevelShortId .",
         "?block_manifestation <http://scta.info/property/hasCanonicalTranscription> ?block_transcription .",
         "MINUS {",
           "?block_transcription <http://scta.info/property/transcriptionType> 'translation' .",
@@ -102,6 +106,8 @@ td {
 
       $.get(sparqlEndpoint, { query: query }, function (data) {
         var results = data.results.bindings;
+        const topLevelShortId = results[0].topLevelShortId.value
+        const itemShortId = results[0].itemShortId.value
         $("#" + wrapper).prev(".navbar").append("Collation for " + blockId);
         if (results[0].previous) {
           $("#" + wrapper).prev(".navbar").append("<a href=?id=" + results[0].previous.value + "> Previous </a> | ");
@@ -186,64 +192,21 @@ td {
               console.log("collatex d", d)
               
               //$.get("https://gist.githubusercontent.com/jeffreycwitt/93fea5c642d4b61b60552827f582e33d/raw/ad742521bff479092a9100b50802891e233f915c/checkList.json", (d2) => {  
-              $.get("http://exist.scta.info/exist/apps/scta-data/GHYaf3/GHYaf3-d1e298/report.json", (d2) => {  
-                
-                //JSON.parse doesn't seem required here const checkList = JSON.parse(d2)
-                checkList = d2[blockId] ? d2[blockId].segments : []
-                console.log("checkList", checkList)
-                
-                $("#tableView").append("<tr id='wit'>");
-                $("#wit").append("<th>seg</th>");
-                $("#wit").append("<th>checkList</th>");
-                d.witnesses.forEach((w) => {
-                  
-                  $("#wit").append("<th>" + w  + "</th>");
-                })
-                const tableCount = []
-                d.table.forEach((seg, ix) => {
-                  console.log("current index", ix)
-                  const variantStatus = checkVariantStatus(d.table, ix)
-                  const variantClass = variantStatus ? "invariant" : "variant"
-                  const status = checkList[ix] ? checkList[ix].status : 'unknown'
-                  $("#tableView").append("<tr class='" + variantClass + "' id='row-" + ix + "'>");
-                  $("#row-" + ix).append("<td>" + (ix + 1)  + "</td>");
-                  $("#row-" + ix).append("<td>" + status  + "</td>");
-                  const segCount = []
-                  seg.forEach((i, ix2) => {
-                    if (ix > 0){
-                      console.log("test")
-                      //const prevLength = seg[ix2].length
-                      let prevLength = 0
-                      d.table.forEach((seg2, ix3) => {
-                        console.log("ix3", ix3)
-                        console.log("ix", ix)
-                        if (ix3 < ix){
-                          prevLength = prevLength + seg2[ix2].length
-                        }
-                      })
-                      const newStart = prevLength + 1
-                      console.log("test", d.table[ix - 1][ix2].length + 1)
-                      const count = {start: newStart, end: i.length + prevLength}
-                      segCount.push(count)
-                    }
-                    else{
-                      const count = {start: 1, end: i.length}
-                      segCount.push(count)
-                    }
-
-                    
-                    $("#row-" + ix).append("<td><a class='lbp-link' target='_blank' href='https://scta.lombardpress.org/#/res?resourceid=" + blockId + "/" + d.witnesses[ix2] + "/transcription@" + segCount[ix2].start + "-" + segCount[ix2].end + "'>" + i.join(" ")  + "</a></td>");
-                  })
-                  tableCount.push(segCount)
-                })
-                console.log("tableCount", tableCount)
+              const checkListUrl = getUrlVar()['checklist'] === "local" ? "http://localhost:8081/report.json" : "https://exist.scta.info/exist/apps/scta-data/" + topLevelShortId + "/" + itemShortId + "/report.json";
+              $.get(checkListUrl, (d2) => {  
+                // display table with remote or local checklist
+                displayTable(d, d2)
+              })
+              .fail(function(){
+                //if checklist is not available display table with empty array in place of retrieved checklist
+                displayTable(d, [])
               })
             },
             error: function (e) {
+              // error handling for original request for collatex json table info
               console.log(e)              
 
             },
-
             dataType: "json"
 
           });
@@ -251,6 +214,57 @@ td {
         });
 
       });
+    }
+    function displayTable(d, d2){
+      // get checklist corresponding to block id
+      checkList = d2[blockId] ? d2[blockId].segments : []
+      
+      // create table headings
+      $("#tableView").append("<tr id='wit'>");
+      $("#wit").append("<th>seg</th>");
+      $("#wit").append("<th>checkList</th>");
+      d.witnesses.forEach((w) => {
+        $("#wit").append("<th>" + w  + "</th>");
+      })
+      // populate segments with variants
+      d.table.forEach((seg, ix) => {
+        //calculate if segment is status variant or invariant
+        const variantStatus = checkVariantStatus(d.table, ix)
+        const variantClass = variantStatus ? "invariant" : "variant"
+        // get checkList status for segment
+        const status = checkList[ix] ? checkList[ix].status : 'unknown'
+        // add segment row
+        $("#tableView").append("<tr class='" + variantClass + "' id='row-" + ix + "'>");
+          // add segment number and status
+        $("#row-" + ix).append("<td>" + (ix + 1)  + "</td>");
+        $("#row-" + ix).append("<td>" + status  + "</td>");
+        // get word range for each segment
+        const segCount = []
+        seg.forEach((i, ix2) => {
+          if (ix > 0){
+            console.log("test")
+            //const prevLength = seg[ix2].length
+            let prevLength = 0
+            d.table.forEach((seg2, ix3) => {
+              console.log("ix3", ix3)
+              console.log("ix", ix)
+              if (ix3 < ix){
+                prevLength = prevLength + seg2[ix2].length
+              }
+            })
+            const newStart = prevLength + 1
+            const count = {start: newStart, end: i.length + prevLength}
+            segCount.push(count)
+          }
+          else{
+            const count = {start: 1, end: i.length}
+            segCount.push(count)
+          }
+          // add segment text for each witness
+          $("#row-" + ix).append("<td><a class='lbp-link' target='_blank' href='https://scta.lombardpress.org/#/res?resourceid=" + blockId + "/" + d.witnesses[ix2] + "/transcription@" + segCount[ix2].start + "-" + segCount[ix2].end + "'>" + i.join(" ").toLowerCase()  + "</a></td>");
+        })
+        
+      })
     }
     function checkVariantStatus(table, ix){
       segmentArray = table[ix].map((i)=> {
