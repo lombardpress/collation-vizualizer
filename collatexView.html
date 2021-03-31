@@ -186,7 +186,7 @@ td {
               console.log("collatex d", d)
               
               //$.get("https://gist.githubusercontent.com/jeffreycwitt/93fea5c642d4b61b60552827f582e33d/raw/ad742521bff479092a9100b50802891e233f915c/checkList.json", (d2) => {  
-              $.get("/report.json", (d2) => {  
+              $.get("http://exist.scta.info/exist/apps/scta-data/GHYaf3/GHYaf3-d1e298/report.json", (d2) => {  
                 
                 //JSON.parse doesn't seem required here const checkList = JSON.parse(d2)
                 checkList = d2[blockId] ? d2[blockId].segments : []
