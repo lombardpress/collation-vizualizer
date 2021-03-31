@@ -25,6 +25,22 @@ td {
   padding: 5px
 }
 .navbar{background-color: white;;}
+
+.variant {
+  border-color: red;
+  color: red
+}
+.invariant {
+  border-color: black;
+  color: black;
+}
+.lbp-link{
+  color:inherit;
+  text-decoration: none;
+}
+.lbp-link:hover{
+  text-decoration: underline;
+}
   </style>
 </head>
 
@@ -128,15 +144,18 @@ td {
           }
           
 
-
+          // get table view
+          const url = "https://collatex.net/demo/collate"
+          //const url = "http://localhost:7369/collate"
           // get graph view
           $.ajax({
             type: "POST",
-            url: "https://collatex.net/demo/collate",
+            url: url,
             data: JSON.stringify(postObject),
             headers: {
               "Accept": "image/svg+xml",
-              "Content-Type": "application/json"
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*"
             },
             success: function (d) {
               console.log("data", d);
@@ -153,31 +172,71 @@ td {
 
           });
 
-          // get table view
+          
           $.ajax({
             type: "POST",
-            url: "https://collatex.net/demo/collate",
+            url: url,
             data: JSON.stringify(postObject),
             headers: {
               "Accept": "application/json",
-              "Content-Type": "application/json"
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*"
             },
             success: function (d) {
-              console.log("data", d);
-              $("#tableView").append("<tr id='wit'>");
-              $("#wit").append("<th>seg</th>");
-              d.witnesses.forEach((w) => {
-                console.log("data", w);
+              console.log("collatex d", d)
+              
+              //$.get("https://gist.githubusercontent.com/jeffreycwitt/93fea5c642d4b61b60552827f582e33d/raw/ad742521bff479092a9100b50802891e233f915c/checkList.json", (d2) => {  
+              $.get("/report.json", (d2) => {  
                 
-                $("#wit").append("<th>" + w  + "</th>");
-              })
-              d.table.forEach((seg, ix) => {
-                $("#tableView").append("<tr id='row-" + ix + "'>");
-                $("#row-" + ix).append("<td>" + (ix + 1)  + "</td>");
-                seg.forEach((i) => {
-                  console.log("data", i);
-                  $("#row-" + ix).append("<td>" + i.join(" ")  + "</td>");
+                //JSON.parse doesn't seem required here const checkList = JSON.parse(d2)
+                checkList = d2[blockId] ? d2[blockId].segments : []
+                console.log("checkList", checkList)
+                
+                $("#tableView").append("<tr id='wit'>");
+                $("#wit").append("<th>seg</th>");
+                $("#wit").append("<th>checkList</th>");
+                d.witnesses.forEach((w) => {
+                  
+                  $("#wit").append("<th>" + w  + "</th>");
                 })
+                const tableCount = []
+                d.table.forEach((seg, ix) => {
+                  console.log("current index", ix)
+                  const variantStatus = checkVariantStatus(d.table, ix)
+                  const variantClass = variantStatus ? "invariant" : "variant"
+                  const status = checkList[ix] ? checkList[ix].status : 'unknown'
+                  $("#tableView").append("<tr class='" + variantClass + "' id='row-" + ix + "'>");
+                  $("#row-" + ix).append("<td>" + (ix + 1)  + "</td>");
+                  $("#row-" + ix).append("<td>" + status  + "</td>");
+                  const segCount = []
+                  seg.forEach((i, ix2) => {
+                    if (ix > 0){
+                      console.log("test")
+                      //const prevLength = seg[ix2].length
+                      let prevLength = 0
+                      d.table.forEach((seg2, ix3) => {
+                        console.log("ix3", ix3)
+                        console.log("ix", ix)
+                        if (ix3 < ix){
+                          prevLength = prevLength + seg2[ix2].length
+                        }
+                      })
+                      const newStart = prevLength + 1
+                      console.log("test", d.table[ix - 1][ix2].length + 1)
+                      const count = {start: newStart, end: i.length + prevLength}
+                      segCount.push(count)
+                    }
+                    else{
+                      const count = {start: 1, end: i.length}
+                      segCount.push(count)
+                    }
+
+                    
+                    $("#row-" + ix).append("<td><a class='lbp-link' target='_blank' href='https://scta.lombardpress.org/#/res?resourceid=" + blockId + "/" + d.witnesses[ix2] + "/transcription@" + segCount[ix2].start + "-" + segCount[ix2].end + "'>" + i.join(" ")  + "</a></td>");
+                  })
+                  tableCount.push(segCount)
+                })
+                console.log("tableCount", tableCount)
               })
             },
             error: function (e) {
@@ -193,9 +252,34 @@ td {
 
       });
     }
+    function checkVariantStatus(table, ix){
+      segmentArray = table[ix].map((i)=> {
+        return i.join(" ").trimRight().toLowerCase();
+      })
+      console.log(segmentArray)
+      console.log(dedupe(segmentArray).length == 1)
+      const invariant = dedupe(segmentArray).length == 1 //true or false
+      console.log("invariant", invariant)
+      return invariant
+    
+    }
+    //items = Array
+    // see https://js-algorithms.tutorialhorizon.com/2016/01/25/dedupe-an-array-javascript/
+    function dedupe(items){
+      
+      var result = [];
+      items.forEach(function(element) {
+        if (result.indexOf(element) === -1) {
+          result.push(element);
+        }
+      });
+      return result;
+    }
     displayCollateX(blockId, "view")
 
 
+
+    
   </script>
 </body>
 
