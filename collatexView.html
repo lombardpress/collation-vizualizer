@@ -261,7 +261,7 @@ td {
             segCount.push(count)
           }
           // add segment text for each witness
-          $("#row-" + ix).append("<td><a class='lbp-link' target='_blank' href='https://scta.lombardpress.org/#/res?resourceid=" + blockId + "/" + d.witnesses[ix2] + "/transcription@" + segCount[ix2].start + "-" + segCount[ix2].end + "'>" + i.join(" ").toLowerCase()  + "</a></td>");
+          $("#row-" + ix).append("<td><a class='lbp-link' target='_new' href='https://scta.lombardpress.org/#/res?resourceid=" + blockId + "/" + d.witnesses[ix2] + "/transcription@" + segCount[ix2].start + "-" + segCount[ix2].end + "'>" + i.join(" ").toLowerCase()  + "</a></td>");
         })
         
       })
