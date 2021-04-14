@@ -46,12 +46,12 @@ td {
 
 <body>
   <div id="textWrapper">
-    <div class="outerWrapper" style="height: 40vh">
+    <div class="outerWrapper" style="max-height: 40vh">
       <div class="navbar">
       </div>
       <div id="view" style="width: 100%; overflow: scroll;"></div>
     </div>
-    <div style="height: 60vh; overflow: scroll";>
+    <div>
       <table id="tableView" style="overflow: scroll; border: 1px solid black"><tr></tr></table>
     </div>
     </div>
@@ -148,10 +148,22 @@ td {
             "transpositions": true,
             "witnesses": witnesses
           }
+          const url = "https://collatex.net/demo/collate"
+
+          if (getUrlVar()['image'] === "true"){
+            getSVGView(url, postObject);
+          }
+          getTableView(url, postObject, topLevelShortId, itemShortId);
+          
           
 
-          // get table view
-          const url = "https://collatex.net/demo/collate"
+        });
+
+      });
+    }
+    function getSVGView(url, postObject){
+      // get table view
+      
           //const url = "http://localhost:7369/collate"
           // get graph view
           $.ajax({
@@ -164,12 +176,10 @@ td {
 
             },
             success: function (d) {
-              console.log("data", d);
               $("#view").append(d);
               $("#view").html($("#view").html());
             },
             error: function (e) {
-              console.log("error", e)
               $("#view").append(e.responseText);
 
             },
@@ -178,8 +188,9 @@ td {
 
           });
 
-          
-          $.ajax({
+    }
+    function getTableView(url, postObject, topLevelShortId, itemShortId){
+      $.ajax({
             type: "POST",
             url: url,
             data: JSON.stringify(postObject),
@@ -189,8 +200,6 @@ td {
 
             },
             success: function (d) {
-              console.log("collatex d", d)
-              
               //$.get("https://gist.githubusercontent.com/jeffreycwitt/93fea5c642d4b61b60552827f582e33d/raw/ad742521bff479092a9100b50802891e233f915c/checkList.json", (d2) => {  
               const checkListUrl = getUrlVar()['checklist'] === "local" ? "http://localhost:8081/report.json" : "https://exist.scta.info/exist/apps/scta-data/" + topLevelShortId + "/" + itemShortId + "/report.json";
               $.get(checkListUrl, (d2) => {  
@@ -210,11 +219,9 @@ td {
             dataType: "json"
 
           });
-
-        });
-
-      });
     }
+    
+    
     function displayTable(d, d2){
       // get checklist corresponding to block id
       checkList = d2[blockId] ? d2[blockId].segments : []
@@ -227,12 +234,20 @@ td {
         $("#wit").append("<th>" + w  + "</th>");
       })
       // populate segments with variants
+      let variantNumberSkips = 0;
       d.table.forEach((seg, ix) => {
         //calculate if segment is status variant or invariant
         const variantStatus = checkVariantStatus(d.table, ix)
         const variantClass = variantStatus ? "invariant" : "variant"
+        let status = "unknown"
+        if (variantStatus){
+          status = "invariant"
+          variantNumberSkips++;
+        }
+        else{
         // get checkList status for segment
-        const status = checkList[ix] ? checkList[ix].status : 'unknown'
+          status = checkList[ix-variantNumberSkips] && checkList[ix-variantNumberSkips].status
+        }
         // add segment row
         $("#tableView").append("<tr class='" + variantClass + "' id='row-" + ix + "'>");
           // add segment number and status
@@ -242,12 +257,9 @@ td {
         const segCount = []
         seg.forEach((i, ix2) => {
           if (ix > 0){
-            console.log("test")
             //const prevLength = seg[ix2].length
             let prevLength = 0
             d.table.forEach((seg2, ix3) => {
-              console.log("ix3", ix3)
-              console.log("ix", ix)
               if (ix3 < ix){
                 prevLength = prevLength + seg2[ix2].length
               }
@@ -270,10 +282,7 @@ td {
       segmentArray = table[ix].map((i)=> {
         return i.join(" ").trimRight().toLowerCase();
       })
-      console.log(segmentArray)
-      console.log(dedupe(segmentArray).length == 1)
       const invariant = dedupe(segmentArray).length == 1 //true or false
-      console.log("invariant", invariant)
       return invariant
     
     }
