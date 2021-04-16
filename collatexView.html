@@ -34,6 +34,21 @@ td {
   border-color: black;
   color: black;
 }
+.chosen {
+  color: green
+}
+.unchosen{
+
+}
+.reason{
+  cursor: pointer;
+}
+.reason:hover{
+  text-decoration: underline;
+}
+.hidden{
+  display: none;
+}
 .lbp-link{
   color:inherit;
   text-decoration: none;
@@ -230,9 +245,18 @@ td {
       $("#tableView").append("<tr id='wit'>");
       $("#wit").append("<th>seg</th>");
       $("#wit").append("<th>checkList</th>");
-      d.witnesses.forEach((w) => {
+      $("#wit").append("<th>reason</th>");
+      $("#tableView").parent().append("<button class='clearFilter'>Clear Filter</button>");
+      
+      //initiateChosenTextIndex and then set in following loop when witness title == "critical"
+      let chosenTextIndex;
+      d.witnesses.forEach((w, ix) => {
+        if (w === "critical"){
+          chosenTextIndex = ix
+        }
         $("#wit").append("<th>" + w  + "</th>");
       })
+      
       // populate segments with variants
       let variantNumberSkips = 0;
       d.table.forEach((seg, ix) => {
@@ -240,6 +264,7 @@ td {
         const variantStatus = checkVariantStatus(d.table, ix)
         const variantClass = variantStatus ? "invariant" : "variant"
         let status = "unknown"
+        let reasons;
         if (variantStatus){
           status = "invariant"
           variantNumberSkips++;
@@ -247,14 +272,29 @@ td {
         else{
         // get checkList status for segment
           status = checkList[ix-variantNumberSkips] && checkList[ix-variantNumberSkips].status
+          reasons = checkList[ix-variantNumberSkips] && checkList[ix-variantNumberSkips].reasons
         }
         // add segment row
-        $("#tableView").append("<tr class='" + variantClass + "' id='row-" + ix + "'>");
+        $("#tableView").append("<tr class='textRow " + variantClass + "' id='row-" + ix + "'>");
           // add segment number and status
         $("#row-" + ix).append("<td>" + (ix + 1)  + "</td>");
         $("#row-" + ix).append("<td>" + status  + "</td>");
+
+        let reasonLinks = ""
+        if (reasons){
+          reasonLinks = reasons.map((r) => {
+            const description = d2.principles[r]
+            return "<span class='reason' title='" + description + "'>" + r + "</span>";
+          })
+          console.log(reasonLinks)
+          reasonLinks = reasonLinks.join(" ");
+        }
+        console.log(reasonLinks);
+        $("#row-" + ix).append("<td>" + reasonLinks + "</td>");
         // get word range for each segment
         const segCount = []
+
+        
         seg.forEach((i, ix2) => {
           if (ix > 0){
             //const prevLength = seg[ix2].length
@@ -272,12 +312,16 @@ td {
             const count = {start: 1, end: i.length}
             segCount.push(count)
           }
+
+          // if seg is variant (not invariant) and does match chosenText, set chosen status to "chosen" otherwise set to "unchosen"
+          const chosenStatus = (!variantStatus && seg[chosenTextIndex].join(" ").toLowerCase() === i.join(" ").toLowerCase()) ? "chosen" : "unchosen"
           // add segment text for each witness
-          $("#row-" + ix).append("<td><a class='lbp-link' target='_new' href='https://scta.lombardpress.org/#/res?resourceid=" + blockId + "/" + d.witnesses[ix2] + "/transcription@" + segCount[ix2].start + "-" + segCount[ix2].end + "'>" + i.join(" ").toLowerCase()  + "</a></td>");
+          $("#row-" + ix).append("<td class=" + chosenStatus + "><a class='lbp-link' target='_new' href='https://scta.lombardpress.org/#/res?resourceid=" + blockId + "/" + d.witnesses[ix2] + "/transcription@" + segCount[ix2].start + "-" + segCount[ix2].end + "'>" + i.join(" ").toLowerCase()  + "</a></td>");
         })
         
       })
     }
+    
     function checkVariantStatus(table, ix){
       segmentArray = table[ix].map((i)=> {
         return i.join(" ").trimRight().toLowerCase();
@@ -285,6 +329,14 @@ td {
       const invariant = dedupe(segmentArray).length == 1 //true or false
       return invariant
     
+    }
+
+    function filterReasons(reason){
+      console.log(reason)
+      $( ".textRow:not(:contains(" + reason + "))").addClass("hidden");
+    }
+    function unfilterReasons(){
+      $(".textRow").removeClass("hidden");
     }
     //items = Array
     // see https://js-algorithms.tutorialhorizon.com/2016/01/25/dedupe-an-array-javascript/
@@ -302,6 +354,18 @@ td {
 
 
 
+    
+      $(document).on("click", ".reason", function(e){
+        
+        console.log("test firing", $(e.target).text());
+        const reason = $(e.target).text()
+        filterReasons(reason);
+      })
+      $(document).on("click", ".clearFilter", function(e){
+        
+        console.log("test firing");
+        unfilterReasons();
+      })
     
   </script>
 </body>
