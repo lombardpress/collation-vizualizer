@@ -91,7 +91,7 @@ td {
 
 
     //get manifestations (loop through manifestsions, add promises to array)
-    const sparqlEndpoint = "http://sparql-docker.scta.info/ds/query";
+    const sparqlEndpoint = "https://sparql-docker.scta.info/ds/query";
 
 
 
@@ -252,6 +252,7 @@ td {
       let chosenTextIndex;
       d.witnesses.forEach((w, ix) => {
         if (w === "critical"){
+        //if (w === "cod-pu6y7d"){
           chosenTextIndex = ix
         }
         $("#wit").append("<th>" + w  + "</th>");
