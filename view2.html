@@ -176,7 +176,7 @@
           }
           values.forEach(function(v){
             if (v.id != baseTextId){
-              displayText = runGoogleDiffPatch(baseText, v.text)
+              displayText = runGoogleDiffPatch(baseText, v.text, v.id)
               const link = "view2.html?id=" + blockId + "&m=" + v.id
               $(".spinner").remove()
               $("#" + wrapper).append("<div class='text'><a href='" + link + "' class='label' data-id='" + v.id + "'>" + v.id + "</a>" + displayText + "</div>")
@@ -189,15 +189,45 @@
 
       });
     }
-    function runGoogleDiffPatch(base, compare){
+    function runGoogleDiffPatch(base, compare, id){
       const dmp = new diff_match_patch();
-      const diff = dmp.diff_main(base, compare);
+      //const diff = dmp.diff_main(base, compare); basic character level div
+      const diff = diff_wordMode(base.toLowerCase(), compare.toLowerCase()) // word level diff
       // Result: [(-1, "Hell"), (1, "G"), (0, "o"), (1, "odbye"), (0, " World.")]
-      dmp.diff_cleanupSemantic(diff);
+      console.log(diff)
+      
+      const diffArray = diff.map((d, i) => {
+        if (d[0] !== 0){
+          const diff = {
+            id: id + "." + i,
+            diff: d,
+          }
+          return diff
+        }
+        
+      })
+      const newArray = diffArray.filter(function(val) { return val !== undefined; })
+      console.log(newArray)
+      
+      //dmp.diff_cleanupSemantic(diff);
+      //console.log(test)
       const ds = dmp.diff_prettyHtml(diff);
       // Result: [(-1, "Hello"), (1, "Goodbye"), (0, " World.")]
       return ds
+      
     }
+
+    function diff_wordMode(text1, text2) {
+      var dmp = new diff_match_patch();
+      var a = dmp.diff_wordsToChars_(text1, text2);
+      var lineText1 = a.chars1;
+      var lineText2 = a.chars2;
+      var lineArray = a.lineArray;
+      var diffs = dmp.diff_main(lineText1, lineText2, false);
+      dmp.diff_charsToLines_(diffs, lineArray);
+      return diffs;
+    }
+
 
     function displayRelated(blockId){
 
