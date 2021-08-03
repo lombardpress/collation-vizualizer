@@ -317,7 +317,7 @@ td {
           // if seg is variant (not invariant) and does match chosenText, set chosen status to "chosen" otherwise set to "unchosen"
           const chosenStatus = (!variantStatus && seg[chosenTextIndex].join(" ").toLowerCase() === i.join(" ").toLowerCase()) ? "chosen" : "unchosen"
           // add segment text for each witness
-          $("#row-" + ix).append("<td class=" + chosenStatus + "><a class='lbp-link' target='_new' href='https://scta.lombardpress.org/#/res?resourceid=" + blockId + "/" + d.witnesses[ix2] + "/transcription@" + segCount[ix2].start + "-" + segCount[ix2].end + "'>" + i.join(" ").toLowerCase()  + "</a></td>");
+          $("#row-" + ix).append("<td class=" + chosenStatus + "><a class='lbp-link' target='_new' href='https://scta.lombardpress.org/res?resourceid=" + blockId + "/" + d.witnesses[ix2] + "/transcription@" + segCount[ix2].start + "-" + segCount[ix2].end + "'>" + i.join(" ").toLowerCase()  + "</a></td>");
         })
         
       })
