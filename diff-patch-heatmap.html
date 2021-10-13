@@ -1,0 +1,64 @@
+<html>
+<head>
+  <script
+  src="https://code.jquery.com/jquery-3.3.1.min.js"
+  integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+  crossorigin="anonymous"></script>
+
+  <script src="diff_match_patch_uncompressed.js"></script>
+  <script>
+  function runGoogleDiffPatch(base, compare){
+    const dmp = new diff_match_patch();
+    const diff = dmp.diff_main(base, compare);
+    // Result: [(-1, "Hell"), (1, "G"), (0, "o"), (1, "odbye"), (0, " World.")]
+    //dmp.diff_cleanupSemantic(diff);
+    const leven = dmp.diff_levenshtein(diff)
+    //const ds = dmp.diff_prettyHtml(diff);
+    // Result: [(-1, "Hello"), (1, "Goodbye"), (0, " World.")]
+    return leven
+  }
+  function compareFxn(a,b) {
+    if (a.leven < b.leven)
+      return -1;
+    if (a.leven > b.leven)
+      return 1;
+    return 0;
+  }
+
+  const text = [
+    "text text text text",
+    "text text test text",
+    "tesp test sett text",
+    "texft tsexft tesxft text",
+    "text textffs texttext text text",
+    "text test test text",
+    "test test test text",
+  ]
+  const newTextMap = text.map((d) => {
+    console.log(d)
+    const compare = runGoogleDiffPatch(text[0], d)
+    const compareObject = {
+      leven: compare,
+      text: d
+    }
+    return compareObject
+  })
+  console.log(newTextMap)
+  const sortedTextMap = newTextMap.sort(compareFxn)
+  $(document).ready(() => {
+    sortedTextMap.forEach((i) => {
+      const num = i.leven + 1
+      const newNum = 1 / num
+      console.log(newNum)
+      $("#view").append("<div>" + i.text + "<svg width='400' height='110'><rect width='300' height='100' style='fill:rgb(0,0,255);stroke-width:3;stroke:rgb(0,0,0);opacity:" + newNum + "'/></svg></div>")
+    })
+  })
+
+
+</script>
+  </head>
+  <body>
+    <div id="view">
+    </div>
+  </body>
+</html>

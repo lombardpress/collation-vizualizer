@@ -1,0 +1,100 @@
+<!-- Use this CSS stylesheet to ensure that add-ons styling
+     matches the default Google Docs styles -->
+<link href="https://ssl.gstatic.com/docs/script/css/add-ons.css"
+     rel="stylesheet">
+
+<!-- The sidebar will have a input box and the search button -->
+<div class="sidebar">
+
+    <!-- The search box for Google Maps -->
+    <div class="block form-group">
+        <input type="text" id="search" placeholder="Enter SCTA ID" />
+        <button class="blue" id="get_passage">Get Passage</button>
+    </div>
+
+    <!-- The container for the Google Maps static image -->
+    <div id='maps'></div>
+
+</div>
+
+<!-- Load the jQuery library from the Google CDN -->
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.1/jquery.min.js">
+</script>
+
+<script>
+
+ 
+  function createQuery(resourceid){
+    
+      var query = [
+        "SELECT ?longTitle ?ct ",
+        "WHERE",
+        "{",
+          "{",
+            "<" + resourceid + "> <http://scta.info/property/hasCanonicalManifestation> ?cm .",
+            "?cm <http://scta.info/property/hasCanonicalTranscription> ?ct",
+          "}",
+          "UNION",
+          
+          "{",
+            "<" + resourceid + "> <http://scta.info/property/hasCanonicalTranscription> ?ct .",
+          "}",
+          "UNION",
+          "{",
+            "<" + resourceid + "> a <http://scta.info/resource/transcription> .",
+            "BIND(<" + resourceid + "> AS ?ct) .",
+          "}",
+          "?ct <http://scta.info/property/isTranscriptionOf> ?m . ",
+          "?m <http://scta.info/property/isManifestationOf> ?e . ",
+          "?e <http://scta.info/property/longTitle> ?longTitle . ",
+        "}"
+        ].join('');
+
+        return query
+  }
+
+
+
+ // Attach click handlers after the Sidebar has loaded in Google Docs
+ $(function() {
+
+   // Use Static Maps to generate an image of the address entered by the user
+   $('#get_passage').click(function() {
+     var resourceid = $('#search').val().split("@")[0];
+     var wordRange = $('#search').val().split("@")[1];
+     var wordStart = wordRange ? wordRange.split("-")[0] : undefined;
+     var wordEnd = wordRange ? wordRange.split("-") : undefined;
+     const sparqlEndpoint = "http://sparql-docker.scta.info/ds/query";
+     const query = createQuery(resourceid);
+     $.get(sparqlEndpoint, { query: query }, function (data) {
+       console.log("data", data);
+       const longTitle = data.results.bindings[0].longTitle.value;
+       console.log("longTitle", longTitle);
+       const transcriptionId = data.results.bindings[0].ct.value;
+       console.log("tid", transcriptionId);
+       const passageUrl = "https://exist.scta.info/exist/apps/scta-app/csv-pct.xq?resourceid=" + transcriptionId
+       $.get(passageUrl, function(d){
+          console.log("data", d);
+          $('#maps').html(d + "(" + longTitle + ")");
+     });
+     });
+     
+     
+   });
+
+   // If the user presses the Enter key in the search box, perform a search
+   $('#search').keyup(function(e) {
+      if (e.keyCode === 13) {
+         $('#load_maps').click();
+      }
+   });
+
+   // When a user clicks the thumbnail image in the sidebar, call
+   // insertGoogleMap to insert the maps image in the current document
+   $('#maps').click(function() {
+     console.log('test', $('#maps').text());
+     google.script.run.insertGoogleMap($('#maps').text());
+   });
+
+ });
+</script>
