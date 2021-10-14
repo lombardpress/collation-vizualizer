@@ -69,6 +69,9 @@ td {
     <div>
       <table id="tableView" style="overflow: scroll; border: 1px solid black"><tr></tr></table>
     </div>
+    <div id="relatedExpressions">
+      
+    </div>
     </div>
     </div>
   </div>
@@ -87,74 +90,292 @@ td {
       return result;
     }
 
-    var blockId = getUrlVar()['id'];
+    var blockId = getUrlVar()['id'].split("@")[0];
+    var wordRange = getUrlVar()['id'].split("@")[1];
+    const state = [blockId]
 
 
     //get manifestations (loop through manifestsions, add promises to array)
     const sparqlEndpoint = "https://sparql-docker.scta.info/ds/query";
 
 
+    function getRelatedExpressionsQuery(resourceid, offset, pagesize, rangeStart, rangeEnd) {
+          let rangeFilter;
+          if (rangeStart && rangeEnd) {
+            rangeFilter = ["FILTER (?isRelatedToRangeEnd <=" + rangeEnd + ")",
+            "FILTER (?isRelatedToRangeStart >=" + rangeStart + ")"].join(" ")
+          }
+          let activeSource;
+          if (!rangeStart && !rangeEnd) {
+            activeSource = [
+              "{",
+              "?element <http://scta.info/property/source> ?isRelatedTo .",
+              "FILTER (!isBlank(?isRelatedTo)) .",
+              "}",
+              "UNION",
+              "{",
+              "?element <http://scta.info/property/source> ?bn .",
+              "?bn <http://scta.info/property/source> ?isRelatedTo .",
+              "?bn <http://scta.info/property/canonicalRangeStart> ?isRelatedToRangeStart .",
+              "?bn <http://scta.info/property/canonicalRangeEnd> ?isRelatedToRangeEnd .",
+              "}"].join(" ")
+          }
+          else {
+            activeSource = ["?element <http://scta.info/property/source> ?bn .",
+              "?bn <http://scta.info/property/source> ?isRelatedTo .",
+              "?bn <http://scta.info/property/canonicalRangeStart> ?isRelatedToRangeStart .",
+              "?bn <http://scta.info/property/canonicalRangeEnd> ?isRelatedToRangeEnd .",
+              rangeFilter].join(" ")
+          }
 
-    function displayCollateX(blockId, wrapper) {
+          let inverseSource;
+          if (!rangeStart && !rangeEnd) {
+            inverseSource = ["{",
+              "?isRelatedTo <http://scta.info/property/source> ?element .",
+              "}",
+              "UNION",
+              "{",
+              "?isRelatedTo <http://scta.info/property/source> ?bn .",
+              "?bn <http://scta.info/property/source> ?element .",
+              "?bn <http://scta.info/property/canonicalRangeStart> ?isRelatedToRangeStart .",
+              "?bn <http://scta.info/property/canonicalRangeEnd> ?isRelatedToRangeEnd .",
+              "}"].join(" ")
+          }
+          else {
+            inverseSource = ["?isRelatedTo <http://scta.info/property/source> ?bn .",
+              "?bn <http://scta.info/property/source> ?element .",
+              "?bn <http://scta.info/property/canonicalRangeStart> ?isRelatedToRangeStart .",
+              "?bn <http://scta.info/property/canonicalRangeEnd> ?isRelatedToRangeEnd .",
+              rangeFilter].join(" ")
+          }
+
+          const query = [
+            "SELECT DISTINCT ?isRelatedTo ?label ?element ?longTitle ?author ?authorTitle ?isRelatedToRangeStart ?isRelatedToRangeEnd ?parentBlock ",
+            "WHERE",
+            "{ ",
+            "BIND (<" + resourceid + "> as ?resource)",
+            "{",
+            "?resource ?o ?isRelatedTo .",
+            "?o a <http://scta.info/resource/textRelation> .",
+            "FILTER (?o != <http://scta.info/property/quotes>)",
+            "FILTER (?o != <http://scta.info/property/quotedBy>)",
+            "FILTER (?o != <http://scta.info/property/references>)",
+            "FILTER (?o != <http://scta.info/property/referencedBy>)",
+            "?o <http://www.w3.org/1999/02/22-rdf-syntax-ns#label> ?label . ",
+            "?isRelatedTo a <http://scta.info/resource/expression> .",
+            "}",
+            "UNION",
+            "{",
+            "{",
+            "?resource <http://scta.info/property/structureType> <http://scta.info/resource/structureElement> .",
+            "BIND (?resource as ?element)",
+            "}",
+            "UNION",
+            "{",
+            "?element <http://scta.info/property/isMemberOf> ?resource .",
+            "}",
+            "{",
+            activeSource,
+            "?element <http://scta.info/property/structureElementType> <http://scta.info/resource/structureElementQuote> .",
+            "BIND ('quotes' as ?label) .",
+            "}",
+            "UNION",
+            "{",
+            activeSource,
+            "?element <http://scta.info/property/structureElementType> <http://scta.info/resource/structureElementRef> .",
+            "BIND ('refs' as ?label) .",
+            "}",
+            "}",
+            "UNION",
+            "{",
+            "{",
+            "BIND (?resource as ?element)",
+            "}",
+            "UNION",
+            "{",
+            "?element <http://scta.info/property/isMemberOf> ?resource .",
+            "}",
+            "{",
+            inverseSource,
+            "?isRelatedTo <http://scta.info/property/structureElementType> <http://scta.info/resource/structureElementQuote> .",
+            "BIND ('isQuotedBy' as ?label) .",
+            "}",
+            "UNION",
+            "{",
+            inverseSource,
+            //"?isRelatedTo <http://scta.info/property/source> ?element.",
+            "?isRelatedTo <http://scta.info/property/structureElementType> <http://scta.info/resource/structureElementRef> .",
+            "BIND ('isReferencedBy' as ?label) .",
+            "}",
+            "}",
+            "?isRelatedTo <http://scta.info/property/longTitle> ?longTitle .",
+            "?isRelatedTo <http://scta.info/property/isMemberOf> ?mem .",
+            "?mem <http://scta.info/property/level> '1' .",
+            "OPTIONAL",
+            "{",
+            "?mem <http://www.loc.gov/loc.terms/relators/AUT> ?author .",
+            "?author <http://purl.org/dc/elements/1.1/title> ?authorTitle",
+            "}",
+            "OPTIONAL",
+            "{",
+            "?isRelatedTo <http://scta.info/property/isPartOfStructureBlock> ?parentBlock .",
+            //"?isRelatedTo <http://scta.info/property/isMemberOf> ?parentBlock .",
+            //"?parentBlock <http://scta.info/property/structureType> <http://scta.info/resource/stuctureBlock> .",
+            "}",
+            "}",
+            "ORDER BY ?authorTitle",
+            "LIMIT " + pagesize,
+            "OFFSET " + offset
+          ].join(' ');
+          return query
+        }
+
+        function getRelatedExpressions(resourceid, offset, pagesize, rangeStart, rangeEnd) {
+         query = getRelatedExpressionsQuery(resourceid, offset, pagesize, rangeStart, rangeEnd)
+         promiseContainer = new Promise(function (resolve, reject) {
+          $.get(sparqlEndpoint, { query: query }, function (data) {
+            console.log("test", data)
+            const dataArray = data.results.bindings.map((i) => {return i.isRelatedTo.value})
+            resolve(dataArray)
+          });
+        });
+        return promiseContainer
+      }
+
+
+      function displayRelatedExpressions(blockid, offset, pagesize, rangeStart, rangeEnd){
+        const relatedExpressions = getRelatedExpressions(blockid, offset, pagesize, rangeStart, rangeEnd)
+        console.log("final re", relatedExpressions)
+        relatedExpressions.then((d) => {
+          d.forEach((i) => {
+            $("#relatedExpressions").append("<p class='addRelated' data-id='" + i + "'>" + i + "</p>");
+          })
+        })
+        
+      }
+
+      function addRelated(id){
+        console.log("related add", id)
+        state.push(id)
+        const relatedTranscriptions = displayCollateX([...state, id], "view")
+      }
+      function textReduce(text, wordRange) {
+          const wordTokenStart = wordRange.split("-")[0]
+          const wordTokenEnd = wordRange.split("-")[1]
+          const wordTokens = text.split(" ")
+          // NOTE: I'm not sure what this .filter(Boolean) is doing??
+          const wordTokensClean = wordTokens.filter(Boolean)
+          //const wordTokensBefore = wordTokensClean.slice(0, wordTokenStart - 1);
+          //const wordTokensAfter = wordTokensClean.slice(wordTokenEnd)
+          const wordTokensFocus = wordTokensClean.slice(wordTokenStart - 1, wordTokenEnd)
+          const reducedText = wordTokensFocus.join(" ")
+          return reducedText
+      }
+
+    /** 
+     * @description get transcriptions return json object as Promise
+     * 
+    **/
+     function getTranscriptions(resourceId, wrapper){
+      $("#tableView").html("loading");
+      var idsArray = state.map((i) => {return "<" + i + ">"})
+      var ids = idsArray.join(" ")
       var query = [
-        "SELECT ?transcription ?block_transcription ?next ?previous ?shortId ?itemShortId ?topLevelShortId ",
+        "SELECT ?transcription ?block_transcription ?next ?previous ?shortId ?itemShortId ?topLevelShortId ?individualBlockId ",
         "WHERE",
         "{",
-        "<" + blockId + "> <http://scta.info/property/hasManifestation> ?block_manifestation .",
-        "<" + blockId + "> <http://scta.info/property/isPartOfStructureItem> ?structureItem .",
-        "?structureItem <http://scta.info/property/shortId> ?itemShortId .",
-        "<" + blockId + "> <http://scta.info/property/isPartOfTopLevelExpression> ?topLevel .",
-        "?topLevel <http://scta.info/property/shortId> ?topLevelShortId .",
+        "VALUES ?blockid {" + ids + "} . " ,
+        //"BIND(<http://scta.info/resource/adt-l14-d1e1535> as ?blockid)",
+        "?blockid <http://scta.info/property/hasManifestation> ?block_manifestation .",
+        "?block_manifestation <http://scta.info/property/isManifestationOf> ?individualBlockId .",
+        "?blockid <http://scta.info/property/shortId> ?shortId .",
         "?block_manifestation <http://scta.info/property/hasCanonicalTranscription> ?block_transcription .",
+        "OPTIONAL",
+        "{",
+          "?blockid <http://scta.info/property/isPartOfStructureItem> ?structureItem .",
+          "?structureItem <http://scta.info/property/shortId> ?itemShortId .",
+          "?blockid <http://scta.info/property/isPartOfTopLevelExpression> ?topLevel .",
+          "?topLevel <http://scta.info/property/shortId> ?topLevelShortId .",
+        "}",
         "MINUS {",
           "?block_transcription <http://scta.info/property/transcriptionType> 'translation' .",
         "}",
         "OPTIONAL {",
-        "<" + blockId + "> <http://scta.info/property/next> ?next .",
+        "?blockid <http://scta.info/property/next> ?next .",
         "}",
         "OPTIONAL {",
-        "<" + blockId + "> <http://scta.info/property/previous> ?previous .",
+        "?blockid <http://scta.info/property/previous> ?previous .",
         "}",
-        "<" + blockId + "> <http://scta.info/property/shortId> ?shortId .",
-
         "}"].join('');
 
-      $.get(sparqlEndpoint, { query: query }, function (data) {
-        var results = data.results.bindings;
-        const topLevelShortId = results[0].topLevelShortId.value
-        const itemShortId = results[0].itemShortId.value
-        $("#" + wrapper).prev(".navbar").append("Collation for " + blockId);
-        if (results[0].previous) {
-          $("#" + wrapper).prev(".navbar").append("<a href=?id=" + results[0].previous.value + "> Previous </a> | ");
-        }
-        if (results[0].next) {
-          $("#" + wrapper).prev(".navbar").append("<a href=?id=" + results[0].next.value + ">Next </a> ");
-        }
+      promiseContainer = new Promise(function (resolve, reject) {
+        $.get(sparqlEndpoint, { query: query }, function (data) {
+          console.log("new test")
+          var results = data.results.bindings;
+          const topLevelShortId = results[0].topLevelShortId ? results[0].topLevelShortId.value : "";
+          const itemShortId = results[0].topLevelShortId ? results[0].itemShortId.value : "";
+          if (state.length === 0){
+            $("#" + wrapper).prev(".navbar").append("Collation for " + blockId);
+            if (results[0].previous) {
+              $("#" + wrapper).prev(".navbar").append("<a href=?id=" + results[0].previous.value + "> Previous </a> | ");
+            }
+            if (results[0].next) {
+              $("#" + wrapper).prev(".navbar").append("<a href=?id=" + results[0].next.value + ">Next </a> ");
+            }
+          }
 
 
-        promiseArray = results.map(function (r) {
-          var textPromise = new Promise(function (resolve, reject) {
-            $.get("https://exist.scta.info/exist/apps/scta-app/csv-pct.xq?resourceid=" + r.block_transcription.value, function (data) {
-
-              // block of code to remove any lingering punctuation
-              // code retrieved from https://stackoverflow.com/a/48387827/731085
-              var punctuationRegEx = /[!-/:-@[-`{-~¡-©«-¬®-±´¶-¸»¿×÷˂-˅˒-˟˥-˫˭˯-˿͵;΄-΅·϶҂՚-՟։-֊־׀׃׆׳-״؆-؏؛؞-؟٪-٭۔۩۽-۾܀-܍߶-߹।-॥॰৲-৳৺૱୰௳-௺౿ೱ-ೲ൹෴฿๏๚-๛༁-༗༚-༟༴༶༸༺-༽྅྾-࿅࿇-࿌࿎-࿔၊-၏႞-႟჻፠-፨᎐-᎙᙭-᙮᚛-᚜᛫-᛭᜵-᜶។-៖៘-៛᠀-᠊᥀᥄-᥅᧞-᧿᨞-᨟᭚-᭪᭴-᭼᰻-᰿᱾-᱿᾽᾿-῁῍-῏῝-῟῭-`´-῾\u2000-\u206e⁺-⁾₊-₎₠-₵℀-℁℃-℆℈-℉℔№-℘℞-℣℥℧℩℮℺-℻⅀-⅄⅊-⅍⅏←-⏧␀-␦⑀-⑊⒜-ⓩ─-⚝⚠-⚼⛀-⛃✁-✄✆-✉✌-✧✩-❋❍❏-❒❖❘-❞❡-❵➔➘-➯➱-➾⟀-⟊⟌⟐-⭌⭐-⭔⳥-⳪⳹-⳼⳾-⳿⸀-\u2e7e⺀-⺙⺛-⻳⼀-⿕⿰-⿻\u3000-〿゛-゜゠・㆐-㆑㆖-㆟㇀-㇣㈀-㈞㈪-㉃㉐㉠-㉿㊊-㊰㋀-㋾㌀-㏿䷀-䷿꒐-꓆꘍-꘏꙳꙾꜀-꜖꜠-꜡꞉-꞊꠨-꠫꡴-꡷꣎-꣏꤮-꤯꥟꩜-꩟﬩﴾-﴿﷼-﷽︐-︙︰-﹒﹔-﹦﹨-﹫！-／：-＠［-｀｛-･￠-￦￨-￮￼-�]|\ud800[\udd00-\udd02\udd37-\udd3f\udd79-\udd89\udd90-\udd9b\uddd0-\uddfc\udf9f\udfd0]|\ud802[\udd1f\udd3f\ude50-\ude58]|\ud809[\udc00-\udc7e]|\ud834[\udc00-\udcf5\udd00-\udd26\udd29-\udd64\udd6a-\udd6c\udd83-\udd84\udd8c-\udda9\uddae-\udddd\ude00-\ude41\ude45\udf00-\udf56]|\ud835[\udec1\udedb\udefb\udf15\udf35\udf4f\udf6f\udf89\udfa9\udfc3]|\ud83c[\udc00-\udc2b\udc30-\udc93]/g;
-              var string = data;
-              var newString = string.replace(punctuationRegEx, '').replace(/(\s){2,}/g, '$1');
-              
-              var dataObject = {
-                "text": newString,
-                "id": r.block_transcription.value
-              }
-              resolve(dataObject)
+          promiseArray = results.map(function (r) {
+            var textPromise = new Promise(function (resolve, reject) {
+              $.get("https://exist.scta.info/exist/apps/scta-app/csv-pct.xq?resourceid=" + r.block_transcription.value, function (data) {
+                console.log("new test2", r)
+                // block of code to remove any lingering punctuation
+                // code retrieved from https://stackoverflow.com/a/48387827/731085
+                var punctuationRegEx = /[!-/:-@[-`{-~¡-©«-¬®-±´¶-¸»¿×÷˂-˅˒-˟˥-˫˭˯-˿͵;΄-΅·϶҂՚-՟։-֊־׀׃׆׳-״؆-؏؛؞-؟٪-٭۔۩۽-۾܀-܍߶-߹।-॥॰৲-৳৺૱୰௳-௺౿ೱ-ೲ൹෴฿๏๚-๛༁-༗༚-༟༴༶༸༺-༽྅྾-࿅࿇-࿌࿎-࿔၊-၏႞-႟჻፠-፨᎐-᎙᙭-᙮᚛-᚜᛫-᛭᜵-᜶។-៖៘-៛᠀-᠊᥀᥄-᥅᧞-᧿᨞-᨟᭚-᭪᭴-᭼᰻-᰿᱾-᱿᾽᾿-῁῍-῏῝-῟῭-`´-῾\u2000-\u206e⁺-⁾₊-₎₠-₵℀-℁℃-℆℈-℉℔№-℘℞-℣℥℧℩℮℺-℻⅀-⅄⅊-⅍⅏←-⏧␀-␦⑀-⑊⒜-ⓩ─-⚝⚠-⚼⛀-⛃✁-✄✆-✉✌-✧✩-❋❍❏-❒❖❘-❞❡-❵➔➘-➯➱-➾⟀-⟊⟌⟐-⭌⭐-⭔⳥-⳪⳹-⳼⳾-⳿⸀-\u2e7e⺀-⺙⺛-⻳⼀-⿕⿰-⿻\u3000-〿゛-゜゠・㆐-㆑㆖-㆟㇀-㇣㈀-㈞㈪-㉃㉐㉠-㉿㊊-㊰㋀-㋾㌀-㏿䷀-䷿꒐-꓆꘍-꘏꙳꙾꜀-꜖꜠-꜡꞉-꞊꠨-꠫꡴-꡷꣎-꣏꤮-꤯꥟꩜-꩟﬩﴾-﴿﷼-﷽︐-︙︰-﹒﹔-﹦﹨-﹫！-／：-＠［-｀｛-･￠-￦￨-￮￼-�]|\ud800[\udd00-\udd02\udd37-\udd3f\udd79-\udd89\udd90-\udd9b\uddd0-\uddfc\udf9f\udfd0]|\ud802[\udd1f\udd3f\ude50-\ude58]|\ud809[\udc00-\udc7e]|\ud834[\udc00-\udcf5\udd00-\udd26\udd29-\udd64\udd6a-\udd6c\udd83-\udd84\udd8c-\udda9\uddae-\udddd\ude00-\ude41\ude45\udf00-\udf56]|\ud835[\udec1\udedb\udefb\udf15\udf35\udf4f\udf6f\udf89\udfa9\udfc3]|\ud83c[\udc00-\udc2b\udc30-\udc93]/g;
+                var string = data;
+                // truncate compare string
+                console.log("word range at truncate", wordRange)
+                console.log("blockId at truncate", blockId)
+                var string = r.individualBlockId.value === blockId && wordRange ? textReduce(string, wordRange) : string
+                var newString = string.replace(punctuationRegEx, '').replace(/(\s){2,}/g, '$1');
+                
+                var dataObject = {
+                  "text": newString,
+                  "id": r.block_transcription.value,
+                  topLevelShortId,
+                  itemShortId,
+                }
+                resolve(dataObject)
+              });
             });
+            return textPromise
           });
-          return textPromise
-        });
+          resolve(promiseArray)
+          
+      });
+      
+    });
+    return promiseContainer
+    
+  }
 
-        Promise.all(promiseArray).then(function (values) {
-          const witnesses = values.map(function (r) {
-            return { "id": r.id.split("/resource/")[1].split("/")[1], "content": r.text }
+
+
+
+
+
+    function displayCollateX(blockId, wrapper) {
+      promiseContainer = getTranscriptions(blockId, wrapper)
+      console.log("test3", promiseContainer)
+
+      promiseContainer.then(function(promiseArray){
+          Promise.all(promiseArray).then(function (values) {
+            console.log("values", values)
+          const witnesses = values.map(function (r, i) {
+            const eslug = r.id.split("/resource/")[1].split("/")[0]
+            const mslug = r.id.split("/resource/")[1].split("/")[1]
+
+            return { "id": eslug + "/" + mslug, "content": r.text }
           });
           const postObject = {
             "algorithm": "dekker",
@@ -168,12 +389,11 @@ td {
           if (getUrlVar()['image'] === "true"){
             getSVGView(url, postObject);
           }
-          getTableView(url, postObject, topLevelShortId, itemShortId);
+          getTableView(url, postObject, values[0].topLevelShortId, values[0].itemShortId);
           
           
 
         });
-
       });
     }
     function getSVGView(url, postObject){
@@ -251,7 +471,7 @@ td {
       //initiateChosenTextIndex and then set in following loop when witness title == "critical"
       let chosenTextIndex;
       d.witnesses.forEach((w, ix) => {
-        if (w === "critical"){
+        if (w === blockId + "critical"){
         //if (w === "cod-pu6y7d"){
           chosenTextIndex = ix
         }
@@ -287,8 +507,8 @@ td {
             const description = d2.principles[r]
             return "<span class='reason' title='" + description + "'>" + r + "</span>";
           })
-          console.log(reasonLinks)
-          reasonLinks = reasonLinks.join(" ");
+          console.log("reason links", reasonLinks)
+          reasonLinks = reasonLinks && reasonLinks.join(" ");
         }
         console.log(reasonLinks);
         $("#row-" + ix).append("<td>" + reasonLinks + "</td>");
@@ -315,9 +535,9 @@ td {
           }
 
           // if seg is variant (not invariant) and does match chosenText, set chosen status to "chosen" otherwise set to "unchosen"
-          const chosenStatus = (!variantStatus && seg[chosenTextIndex].join(" ").toLowerCase() === i.join(" ").toLowerCase()) ? "chosen" : "unchosen"
+          const chosenStatus = (!variantStatus && seg[chosenTextIndex] && seg[chosenTextIndex].join(" ").toLowerCase() === i.join(" ").toLowerCase()) ? "chosen" : "unchosen"
           // add segment text for each witness
-          $("#row-" + ix).append("<td class=" + chosenStatus + "><a class='lbp-link' target='_new' href='https://scta.lombardpress.org/res?resourceid=" + blockId + "/" + d.witnesses[ix2] + "/transcription@" + segCount[ix2].start + "-" + segCount[ix2].end + "'>" + i.join(" ").toLowerCase()  + "</a></td>");
+          $("#row-" + ix).append("<td class=" + chosenStatus + "><a class='lbp-link' target='_new' href='https://scta.lombardpress.org/res?resourceid=http://scta.info/resource/" +  d.witnesses[ix2] + "/transcription@" + segCount[ix2].start + "-" + segCount[ix2].end + "'>" + i.join(" ").toLowerCase()  + "</a></td>");
         })
         
       })
@@ -352,6 +572,7 @@ td {
       return result;
     }
     displayCollateX(blockId, "view")
+    displayRelatedExpressions(blockId, 0, 200, wordRange.split("-")[0], wordRange.split("-")[1])
 
 
 
@@ -367,6 +588,16 @@ td {
         console.log("test firing");
         unfilterReasons();
       })
+      $(document).on("click", ".addRelated", function(e){
+        
+        console.log("test firing");
+        const id = $(e.target).attr("data-id")
+        addRelated(id)
+      })
+
+      
+
+      
     
   </script>
 </body>
