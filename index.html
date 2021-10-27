@@ -70,7 +70,7 @@
 
         promiseArray = results.map(function(r){
           var textPromise = new Promise(function(resolve, reject){
-            $.get("http://exist.scta.info/exist/apps/scta-app/csv-pct.xq?resourceid=" + r.block_transcription.value, function(data){
+            $.get("https://exist.scta.info/exist/apps/scta-app/csv-pct.xq?resourceid=" + r.block_transcription.value, function(data){
               var dataObject = {
                 "text": data,
                 "id": r.block_transcription.value
