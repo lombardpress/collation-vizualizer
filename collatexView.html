@@ -92,6 +92,8 @@ td {
 
     var blockId = getUrlVar()['id'].split("@")[0];
     var wordRange = getUrlVar()['id'].split("@")[1];
+    var wordRangeStart = wordRange && wordRange.split("-")[0]
+    var wordRangeEnd = wordRange && wordRange.split("-")[1]
     const state = [blockId]
 
 
@@ -572,7 +574,8 @@ td {
       return result;
     }
     displayCollateX(blockId, "view")
-    displayRelatedExpressions(blockId, 0, 200, wordRange.split("-")[0], wordRange.split("-")[1])
+
+    displayRelatedExpressions(blockId, 0, 200, wordRangeStart, wordRangeEnd)
 
 
 
