@@ -155,9 +155,9 @@ td {
             "SELECT DISTINCT ?isRelatedTo ?label ?element ?longTitle ?author ?authorTitle ?isRelatedToRangeStart ?isRelatedToRangeEnd ?parentBlock ",
             "WHERE",
             "{ ",
-            "BIND (<" + resourceid + "> as ?resource)",
+            //"BIND (<" + resourceid + "> as ?resource)",
             "{",
-            "?resource ?o ?isRelatedTo .",
+            "<" + resourceid + "> ?o ?isRelatedTo .",
             "?o a <http://scta.info/resource/textRelation> .",
             "FILTER (?o != <http://scta.info/property/quotes>)",
             "FILTER (?o != <http://scta.info/property/quotedBy>)",
@@ -169,12 +169,12 @@ td {
             "UNION",
             "{",
             "{",
-            "?resource <http://scta.info/property/structureType> <http://scta.info/resource/structureElement> .",
-            "BIND (?resource as ?element)",
+            "<" + resourceid + "> <http://scta.info/property/structureType> <http://scta.info/resource/structureElement> .",
+            "BIND (<" + resourceid + "> as ?element)",
             "}",
             "UNION",
             "{",
-            "?element <http://scta.info/property/isMemberOf> ?resource .",
+            "?element <http://scta.info/property/isMemberOf> <" + resourceid + "> .",
             "}",
             "{",
             activeSource,
@@ -191,11 +191,11 @@ td {
             "UNION",
             "{",
             "{",
-            "BIND (?resource as ?element)",
+            "BIND (<" + resourceid + "> as ?element)",
             "}",
             "UNION",
             "{",
-            "?element <http://scta.info/property/isMemberOf> ?resource .",
+            "?element <http://scta.info/property/isMemberOf> <" + resourceid + "> .",
             "}",
             "{",
             inverseSource,
@@ -229,6 +229,7 @@ td {
             "LIMIT " + pagesize,
             "OFFSET " + offset
           ].join(' ');
+          console.log("related query", query)
           return query
         }
 
@@ -236,7 +237,7 @@ td {
          query = getRelatedExpressionsQuery(resourceid, offset, pagesize, rangeStart, rangeEnd)
          promiseContainer = new Promise(function (resolve, reject) {
           $.get(sparqlEndpoint, { query: query }, function (data) {
-            console.log("test", data)
+            console.log("related test", data)
             const dataArray = data.results.bindings.map((i) => {return i.isRelatedTo.value})
             resolve(dataArray)
           });
@@ -312,7 +313,7 @@ td {
 
       promiseContainer = new Promise(function (resolve, reject) {
         $.get(sparqlEndpoint, { query: query }, function (data) {
-          console.log("new test")
+          console.log("new test", data)
           var results = data.results.bindings;
           const topLevelShortId = results[0].topLevelShortId ? results[0].topLevelShortId.value : "";
           const itemShortId = results[0].topLevelShortId ? results[0].itemShortId.value : "";
