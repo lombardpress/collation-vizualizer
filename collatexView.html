@@ -56,14 +56,22 @@ td {
 .lbp-link:hover{
   text-decoration: underline;
 }
+#imageViewer{
+  height: 200px; 
+    position: fixed; 
+    bottom:0%;
+    width:100%; 
+    background-color: #393838; 
+    opacity: 1;
+    display: none;
+}
   </style>
 </head>
 
 <body>
   <div id="textWrapper">
     <div class="outerWrapper" style="max-height: 40vh">
-      <div class="navbar">
-      </div>
+      <div class="navbar"></div>
       <div id="view" style="width: 100%; overflow: scroll;"></div>
     </div>
     <div>
@@ -76,7 +84,11 @@ td {
     </div>
   </div>
   
+    <div id="imageViewer"></div>
   </div>
+<!-- </div>
+</div>
+</div> -->
 
 
 
@@ -513,7 +525,6 @@ td {
           console.log("reason links", reasonLinks)
           reasonLinks = reasonLinks && reasonLinks.join(" ");
         }
-        console.log(reasonLinks);
         $("#row-" + ix).append("<td>" + reasonLinks + "</td>");
         // get word range for each segment
         const segCount = []
@@ -556,7 +567,6 @@ td {
     }
 
     function filterReasons(reason){
-      console.log(reason)
       $( ".textRow:not(:contains(" + reason + "))").addClass("hidden");
     }
     function unfilterReasons(){
@@ -583,13 +593,11 @@ td {
     
       $(document).on("click", ".reason", function(e){
         
-        console.log("test firing", $(e.target).text());
         const reason = $(e.target).text()
         filterReasons(reason);
       })
       $(document).on("click", ".clearFilter", function(e){
         
-        console.log("test firing");
         unfilterReasons();
       })
       $(document).on("click", ".addRelated", function(e){
@@ -602,6 +610,42 @@ td {
       
 
       
+
+      $(document).on("click", ".lbp-link", function(e){
+        event.preventDefault()
+        const link = $(this).attr("href")
+        const resourceid = link.split("resourceid=")[1]
+        const pid = resourceid.split("@")[0]
+        const manifestationSlug = pid.split("/")[pid.split("/").length - 2 ]
+        const wordRange = resourceid.split("@")[1]
+        const firstWord = parseInt(wordRange.split("-")[0])
+        $.get("https://exist.scta.info/exist/apps/scta-app/word-line-lookup.xq?tid=" + pid, function(d){
+          const entry = d[firstWord -1]
+          const line = entry.line
+          const wordLinePosition = entry.wordLinePosition
+          const wordLineTotal = entry.wordLineTotal
+          const page = entry.precedingpb.replace("-", '');
+          const shortSurfaceId= manifestationSlug + "/" + page;
+          const coordsUrl = "https://exist.scta.info/exist/apps/scta-app/folio-annotaiton-list-from-simpleXmlCoordinates.xq?surfaceid=" + shortSurfaceId + "&coords=loose";
+          $.get(coordsUrl, function(d2){
+            const lr = d2.resources[line - 1]
+            const imageUrlBase = lr.imageUrl
+            const coords = lr.on.split("#")[1].split("=")[1]
+            const text = lr.resource.chars
+            const lineWidth = parseInt(coords.split(",")[2])
+            const x = parseInt(coords.split(",")[0])
+            const lineWidthDivision = lineWidth / wordLineTotal
+            const xOffSet = (x + (lineWidthDivision * (wordLinePosition - 1)))
+            const newCoords = (parseInt(xOffSet) - 300) + "," + coords.split(",")[1] + "," + (parseInt(lineWidthDivision) + 300) + "," + coords.split(",")[3]
+            //const imageUrl = imageUrlBase + "/" + newCoords + "/full/0/default.jpg"
+            const imageUrl = imageUrlBase + "/" + coords + "/full/0/default.jpg"
+            $("#imageViewer").css("display", "block")
+            $("#imageViewer").html("<div><img src='" + imageUrl + "'/><p>" + lr.label + ": " + lr.resource.chars + "</p><p><a href='" + link  + "' target='_new'>view in lbpweb</a></p></div>");
+          });
+
+        });
+
+      })
     
   </script>
 </body>
