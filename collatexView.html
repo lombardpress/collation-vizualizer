@@ -241,7 +241,6 @@ td {
             "LIMIT " + pagesize,
             "OFFSET " + offset
           ].join(' ');
-          console.log("related query", query)
           return query
         }
 
@@ -249,7 +248,6 @@ td {
          query = getRelatedExpressionsQuery(resourceid, offset, pagesize, rangeStart, rangeEnd)
          promiseContainer = new Promise(function (resolve, reject) {
           $.get(sparqlEndpoint, { query: query }, function (data) {
-            console.log("related test", data)
             const dataArray = data.results.bindings.map((i) => {return i.isRelatedTo.value})
             resolve(dataArray)
           });
@@ -260,7 +258,6 @@ td {
 
       function displayRelatedExpressions(blockid, offset, pagesize, rangeStart, rangeEnd){
         const relatedExpressions = getRelatedExpressions(blockid, offset, pagesize, rangeStart, rangeEnd)
-        console.log("final re", relatedExpressions)
         relatedExpressions.then((d) => {
           d.forEach((i) => {
             $("#relatedExpressions").append("<p class='addRelated' data-id='" + i + "'>" + i + "</p>");
@@ -270,7 +267,6 @@ td {
       }
 
       function addRelated(id){
-        console.log("related add", id)
         state.push(id)
         const relatedTranscriptions = displayCollateX([...state, id], "view")
       }
@@ -325,7 +321,6 @@ td {
 
       promiseContainer = new Promise(function (resolve, reject) {
         $.get(sparqlEndpoint, { query: query }, function (data) {
-          console.log("new test", data)
           var results = data.results.bindings;
           const topLevelShortId = results[0].topLevelShortId ? results[0].topLevelShortId.value : "";
           const itemShortId = results[0].topLevelShortId ? results[0].itemShortId.value : "";
@@ -343,14 +338,11 @@ td {
           promiseArray = results.map(function (r) {
             var textPromise = new Promise(function (resolve, reject) {
               $.get("https://exist.scta.info/exist/apps/scta-app/csv-pct.xq?resourceid=" + r.block_transcription.value, function (data) {
-                console.log("new test2", r)
                 // block of code to remove any lingering punctuation
                 // code retrieved from https://stackoverflow.com/a/48387827/731085
                 var punctuationRegEx = /[!-/:-@[-`{-~¡-©«-¬®-±´¶-¸»¿×÷˂-˅˒-˟˥-˫˭˯-˿͵;΄-΅·϶҂՚-՟։-֊־׀׃׆׳-״؆-؏؛؞-؟٪-٭۔۩۽-۾܀-܍߶-߹।-॥॰৲-৳৺૱୰௳-௺౿ೱ-ೲ൹෴฿๏๚-๛༁-༗༚-༟༴༶༸༺-༽྅྾-࿅࿇-࿌࿎-࿔၊-၏႞-႟჻፠-፨᎐-᎙᙭-᙮᚛-᚜᛫-᛭᜵-᜶។-៖៘-៛᠀-᠊᥀᥄-᥅᧞-᧿᨞-᨟᭚-᭪᭴-᭼᰻-᰿᱾-᱿᾽᾿-῁῍-῏῝-῟῭-`´-῾\u2000-\u206e⁺-⁾₊-₎₠-₵℀-℁℃-℆℈-℉℔№-℘℞-℣℥℧℩℮℺-℻⅀-⅄⅊-⅍⅏←-⏧␀-␦⑀-⑊⒜-ⓩ─-⚝⚠-⚼⛀-⛃✁-✄✆-✉✌-✧✩-❋❍❏-❒❖❘-❞❡-❵➔➘-➯➱-➾⟀-⟊⟌⟐-⭌⭐-⭔⳥-⳪⳹-⳼⳾-⳿⸀-\u2e7e⺀-⺙⺛-⻳⼀-⿕⿰-⿻\u3000-〿゛-゜゠・㆐-㆑㆖-㆟㇀-㇣㈀-㈞㈪-㉃㉐㉠-㉿㊊-㊰㋀-㋾㌀-㏿䷀-䷿꒐-꓆꘍-꘏꙳꙾꜀-꜖꜠-꜡꞉-꞊꠨-꠫꡴-꡷꣎-꣏꤮-꤯꥟꩜-꩟﬩﴾-﴿﷼-﷽︐-︙︰-﹒﹔-﹦﹨-﹫！-／：-＠［-｀｛-･￠-￦￨-￮￼-�]|\ud800[\udd00-\udd02\udd37-\udd3f\udd79-\udd89\udd90-\udd9b\uddd0-\uddfc\udf9f\udfd0]|\ud802[\udd1f\udd3f\ude50-\ude58]|\ud809[\udc00-\udc7e]|\ud834[\udc00-\udcf5\udd00-\udd26\udd29-\udd64\udd6a-\udd6c\udd83-\udd84\udd8c-\udda9\uddae-\udddd\ude00-\ude41\ude45\udf00-\udf56]|\ud835[\udec1\udedb\udefb\udf15\udf35\udf4f\udf6f\udf89\udfa9\udfc3]|\ud83c[\udc00-\udc2b\udc30-\udc93]/g;
                 var string = data;
                 // truncate compare string
-                console.log("word range at truncate", wordRange)
-                console.log("blockId at truncate", blockId)
                 var string = r.individualBlockId.value === blockId && wordRange ? textReduce(string, wordRange) : string
                 var newString = string.replace(punctuationRegEx, '').replace(/(\s){2,}/g, '$1');
                 
@@ -381,11 +373,9 @@ td {
 
     function displayCollateX(blockId, wrapper) {
       promiseContainer = getTranscriptions(blockId, wrapper)
-      console.log("test3", promiseContainer)
 
       promiseContainer.then(function(promiseArray){
           Promise.all(promiseArray).then(function (values) {
-            console.log("values", values)
           const witnesses = values.map(function (r, i) {
             const eslug = r.id.split("/resource/")[1].split("/")[0]
             const mslug = r.id.split("/resource/")[1].split("/")[1]
@@ -522,7 +512,6 @@ td {
             const description = d2.principles[r]
             return "<span class='reason' title='" + description + "'>" + r + "</span>";
           })
-          console.log("reason links", reasonLinks)
           reasonLinks = reasonLinks && reasonLinks.join(" ");
         }
         $("#row-" + ix).append("<td>" + reasonLinks + "</td>");
