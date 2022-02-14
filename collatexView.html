@@ -288,7 +288,7 @@ td {
      * 
     **/
      function getTranscriptions(resourceId, wrapper){
-      //$("#tableView").html("loading");
+      $("#tableView").html("loading");
       var idsArray = state.map((i) => {return "<" + i + ">"})
       var ids = idsArray.join(" ")
       var query = [
@@ -324,7 +324,7 @@ td {
           var results = data.results.bindings;
           const topLevelShortId = results[0].topLevelShortId ? results[0].topLevelShortId.value : "";
           const itemShortId = results[0].topLevelShortId ? results[0].itemShortId.value : "";
-          //if (state.length === 0){
+          if (state.length === 1){
             $("#" + wrapper).prev(".navbar").append("Collation for " + blockId);
             if (results[0].previous) {
               $("#" + wrapper).prev(".navbar").append("<a href=?id=" + results[0].previous.value + "> Previous </a> | ");
@@ -332,7 +332,7 @@ td {
             if (results[0].next) {
               $("#" + wrapper).prev(".navbar").append("<a href=?id=" + results[0].next.value + ">Next </a> ");
             }
-          //}
+          }
 
 
           promiseArray = results.map(function (r) {
